@@ -1,7 +1,41 @@
 .INCLUDE "apu.inc"
+.INCLUDE "oam.inc"
 .INCLUDE "ppu.inc"
 
-.IMPORT Main
+.IMPORT Func_OamClear, Main, Ram_ShadowOam_oama_arr64
+
+;;;=========================================================================;;;
+
+.ZEROPAGE
+
+;;; NmiReady: Set this to 1 to signal that Ram_ShadowOam_oama_arr64 is ready
+;;; to be consumed by the NMI handler.  The NMI handler will set it back to 0
+;;; once the data is transferred.
+Zp_NmiReady_bool: .res 1
+
+;;; PpuMask: The NMI handler will copy this to rPPUMASK when Zp_NmiReady_bool
+;;; is set.
+.EXPORT Zp_PpuMask_u8
+Zp_PpuMask_u8: .res 1
+
+;;; ScrollX/ScrollY: The NMI handler will copy these to rPPUSCROLL when
+;;; Zp_NmiReady_bool is set.
+.EXPORT Zp_ScrollX_u8, Zp_ScrollY_u8
+Zp_ScrollX_u8: .res 1
+Zp_ScrollY_u8: .res 1
+
+;;;=========================================================================;;;
+
+.BSS
+
+;;; PpuTransfer: Storage for data that the NMI hanlder should transfer to the
+;;; PPU the next time that Zp_NmiReady_bool is set.  Consists of zero or more
+;;; entries, terminated by a zero byte, where each entry consists of:
+;;;     - Length (1 byte, must be nonzero)
+;;;     - Destination PPU address (2 bytes, *big*-endian)
+;;;     - Data (length bytes)
+.EXPORT Ram_PpuTransfer_start
+Ram_PpuTransfer_start: .res $80
 
 ;;;=========================================================================;;;
 
@@ -45,7 +79,7 @@
     sta $0700, X
     inx
     bne :-
-    ;; TODO: Initialize the shadow OAM.
+    jsr Func_OamClear
     ;; Wait for the second VBlank.  After this, the PPU should be warmed up.
     :
     bit rPPUSTATUS
@@ -59,28 +93,82 @@
 
 ;;; NMI interrupt handler, which is called at the start of VBlank.
 .PROC Int_Nmi
-    ;; Set BG palette 0.
-    lda #>PPUADDR_PALETTES
-    ldx #<PPUADDR_PALETTES
+    ;; Save registers.  (Note that the interrupt automatically saves processor
+    ;; flags, so we don't need a php instruction here.)
+    pha
+    txa
+    pha
+    tya
+    pha
+    ;; Check if the CPU is ready to transfer data to the PPU.
+    lda Zp_NmiReady_bool
+    beq _DoneUpdatingPpu
+_TransferOamData:
+    lda #0
+    sta rOAMADDR
+    .assert <Ram_ShadowOam_oama_arr64 = 0, error
+    lda #>Ram_ShadowOam_oama_arr64
+    sta rOAMDMA
+_TransferPpuData:
+    bit rPPUSTATUS  ; Reset the write-twice latch for rPPUADDR and rPPUSCROLL.
+    ldx #0
+    @entryLoop:
+    ldy Ram_PpuTransfer_start, X
+    beq @done
+    inx
+    .repeat 2
+    lda Ram_PpuTransfer_start, X
     sta rPPUADDR
-    stx rPPUADDR
-    lda #$0f  ; black
+    inx
+    .endrepeat
+    @dataLoop:
+    lda Ram_PpuTransfer_start, X
     sta rPPUDATA
-    lda #$19  ; dark green
-    sta rPPUDATA
-    lda #$2a  ; green
-    sta rPPUDATA
-    lda #$3a  ; light green
-    sta rPPUDATA
-    ;; Enable rendering.
-    lda #PPUMASK_RENDER_ALL
+    inx
+    dey
+    bne @dataLoop
+    beq @entryLoop  ; unconditional
+    ;; Mark the PPU transfer buffer as empty.
+    @done:
+    lda #0
+    sta Ram_PpuTransfer_start
+_FinishUpdatingPpu:
+    ;; Update other PPU registers.  Note that rPPUSCROLL is a write-twice
+    ;; register (first X, then Y).
+    lda Zp_ScrollX_u8
+    sta rPPUSCROLL
+    lda Zp_ScrollY_u8
+    sta rPPUSCROLL
+    lda Zp_PpuMask_u8
     sta rPPUMASK
+    ;; Indicate that we are done updating the PPU.
+    dec Zp_NmiReady_bool
+_DoneUpdatingPpu:
+    ;; Restore registers and return.  (Note that the rti instruction
+    ;; automatically restores processor flags, so we don't need a plp
+    ;; instruction here.)
+    pla
+    tay
+    pla
+    tax
+    pla
     rti
 .ENDPROC
 
 ;;; IRQ interrupt handler.
 .PROC Int_Irq
     rti
+.ENDPROC
+
+;;; Signals that shadow OAM/PPU data is ready to be transferred, then waits for
+;;; the next NMI to complete.
+.EXPORT Func_ProcessFrame
+.PROC Func_ProcessFrame
+    inc Zp_NmiReady_bool
+    @loop:
+    lda Zp_NmiReady_bool
+    bne @loop
+    rts
 .ENDPROC
 
 ;;;=========================================================================;;;
