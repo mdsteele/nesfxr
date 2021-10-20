@@ -15,12 +15,12 @@ Zp_NmiReady_bool: .res 1
 
 ;;; PpuMask: The NMI handler will copy this to rPPUMASK when Zp_NmiReady_bool
 ;;; is set.
-.EXPORT Zp_PpuMask_u8
+.EXPORTZP Zp_PpuMask_u8
 Zp_PpuMask_u8: .res 1
 
 ;;; ScrollX/ScrollY: The NMI handler will copy these to rPPUSCROLL when
 ;;; Zp_NmiReady_bool is set.
-.EXPORT Zp_ScrollX_u8, Zp_ScrollY_u8
+.EXPORTZP Zp_ScrollX_u8, Zp_ScrollY_u8
 Zp_ScrollX_u8: .res 1
 Zp_ScrollY_u8: .res 1
 

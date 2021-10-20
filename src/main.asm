@@ -1,8 +1,10 @@
+.INCLUDE "joypad.inc"
 .INCLUDE "oam.inc"
 .INCLUDE "ppu.inc"
 
-.IMPORT Func_ProcessFrame, Ram_Cursor_oama, Ram_PpuTransfer_start
-.IMPORTZP Zp_PpuMask_u8
+.IMPORT Func_ProcessFrame, Func_UpdateButtons
+.IMPORT Ram_Cursor_oama, Ram_PpuTransfer_start
+.IMPORTZP Zp_P1ButtonsHeld_u8, Zp_P1ButtonsPressed_u8, Zp_PpuMask_u8
 
 ;;;=========================================================================;;;
 
@@ -80,6 +82,25 @@ _GameLoop:
     lda #0
     sta Ram_PpuTransfer_start + 4
     :
+    jsr Func_UpdateButtons
+    ;; Check buttons.
+    lda #BUTTON_RIGHT
+    bit Zp_P1ButtonsPressed_u8
+    beq :+
+    lda Ram_Cursor_oama + OAMA::XPos
+    clc
+    adc #7
+    sta Ram_Cursor_oama + OAMA::XPos
+    :
+    lda #BUTTON_LEFT
+    bit Zp_P1ButtonsHeld_u8
+    beq :+
+    lda Ram_Cursor_oama + OAMA::XPos
+    clc
+    sbc #1
+    sta Ram_Cursor_oama + OAMA::XPos
+    :
+    ;; Draw frame.
     jsr Func_ProcessFrame
     jmp _GameLoop
 .ENDPROC

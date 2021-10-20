@@ -3,9 +3,18 @@
 ;;;=========================================================================;;;
 
 ;;; PPU control register (W).
+;;;
+;;; When using the MMC3 mapper's IRQ feature, it is best to use 8x8 objects,
+;;; and use pattern table $0000 for BG and $1000 for objects.  For details, see
+;;; https://wiki.nesdev.org/w/index.php/MMC3#IRQ_Specifics and
+;;; https://wiki.nesdev.org/w/index.php/Sprite_size.
 rPPUCTRL = $2000
 
-PPUCTRL_NMI = %10000000  ; enable NMI interrupts for VBlank
+PPUCTRL_NMI    = %10000000  ; enable NMI interrupts for VBlank
+PPUCTRL_OBJ16  = %00100000  ; use 8x16 objects (instead of 8x8)
+PPUCTRL_BGPT1  = %00010000  ; use pattern table 1 ($1000) for background
+PPUCTRL_OBJPT1 = %00001000  ; use pattern table 1 ($1000) for objects
+PPUCTRL_INC32  = %00000100  ; increment VRAM addr by 32 per rPPUDATA read/write
 
 ;;;=========================================================================;;;
 
@@ -28,7 +37,7 @@ PPUMASK_ALL = (PPUMASK_BG   | PPUMASK_OBJ)   ; draw everything everywhere
 
 ;;;=========================================================================;;;
 
-;;; PPU status (R).  Reading this will clear bit 7 (PPUSTATUS_VBLANK) and will
+;;; PPU status (R).  Reading this will clear bit 7 (PPUSTATUS_VBLANK), and will
 ;;; also reset the write-twice latch for rPPUSCROLL and rPPUADDR.
 rPPUSTATUS = $2002
 
