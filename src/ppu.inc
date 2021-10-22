@@ -58,6 +58,26 @@ rPPUADDR = $2006
 ;;; access, depending on value of rPPUCTRL.
 rPPUDATA = $2007
 
+PPUADDR_NAME0 = $2000  ; nametable 0 (upper-left)
+PPUADDR_ATTR0 = $23c0  ; attribute table 0
+PPUADDR_NAME1 = $2400  ; nametable 1 (upper-right)
+PPUADDR_ATTR1 = $27c0  ; attribute table 1
+PPUADDR_NAME2 = $2800  ; nametable 2 (lower-left)
+PPUADDR_ATTR2 = $2bc0  ; attribute table 2
+PPUADDR_NAME3 = $2c00  ; nametable 3 (lower-right)
+PPUADDR_ATTR3 = $2fc0  ; attribute table 3
 PPUADDR_PALETTES = $3f00  ; https://wiki.nesdev.org/w/index.php/PPU_palettes
+
+;;;=========================================================================;;;
+
+;;; Screen size in pixels:
+SCREEN_WIDTH_PX     = 256
+SCREEN_HEIGHT_PX    = 240
+;;; Screen size in tiles:
+SCREEN_WIDTH_TILES  = 32
+SCREEN_HEIGHT_TILES = 30
+;;; Attribute table size in meta-tiles:
+ATTR_WIDTH  = 8
+ATTR_HEIGHT = 8
 
 ;;;=========================================================================;;;

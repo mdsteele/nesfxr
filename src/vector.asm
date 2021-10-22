@@ -24,6 +24,15 @@ Zp_PpuMask_u8: .res 1
 Zp_ScrollX_u8: .res 1
 Zp_ScrollY_u8: .res 1
 
+;;; BaseName: The base nametable index to scroll relative to (0-3).  The NMI
+;;; handler will copy this to the lower two bits of rPPUCTRL when
+;;; Zp_NmiReady_bool is set.
+.EXPORTZP Zp_BaseName_u2
+Zp_BaseName_u2: .res 1
+
+.EXPORTZP Zp_PpuTransferLen_u8
+Zp_PpuTransferLen_u8: .res 1
+
 ;;;=========================================================================;;;
 
 .BSS
@@ -69,14 +78,14 @@ Ram_PpuTransfer_start: .res $80
     lda #0
     ldx #0
     :
-    sta $0000, X
-    sta $0100, X
-    sta $0200, X
-    sta $0300, X
-    sta $0400, X
-    sta $0500, X
-    sta $0600, X
-    sta $0700, X
+    sta $0000, x
+    sta $0100, x
+    sta $0200, x
+    sta $0300, x
+    sta $0400, x
+    sta $0500, x
+    sta $0600, x
+    sta $0700, x
     inx
     bne :-
     jsr Func_OamClear
@@ -113,36 +122,41 @@ _TransferPpuData:
     bit rPPUSTATUS  ; Reset the write-twice latch for rPPUADDR and rPPUSCROLL.
     ldx #0
     @entryLoop:
-    ldy Ram_PpuTransfer_start, X
+    ldy Ram_PpuTransfer_start, x
     beq @done
     inx
     .repeat 2
-    lda Ram_PpuTransfer_start, X
+    lda Ram_PpuTransfer_start, x
     sta rPPUADDR
     inx
     .endrepeat
     @dataLoop:
-    lda Ram_PpuTransfer_start, X
+    lda Ram_PpuTransfer_start, x
     sta rPPUDATA
     inx
     dey
     bne @dataLoop
     beq @entryLoop  ; unconditional
-    ;; Mark the PPU transfer buffer as empty.
     @done:
-    lda #0
-    sta Ram_PpuTransfer_start
 _FinishUpdatingPpu:
     ;; Update other PPU registers.  Note that rPPUSCROLL is a write-twice
-    ;; register (first X, then Y).
+    ;; register (first X, then Y).  Also note that writing to rPPUADDR (as
+    ;; above) can corrupt the scroll position, so we need to write rPPUSCROLL
+    ;; afterwards.  See https://wiki.nesdev.org/w/index.php/PPU_scrolling.
     lda Zp_ScrollX_u8
     sta rPPUSCROLL
     lda Zp_ScrollY_u8
     sta rPPUSCROLL
+    lda Zp_BaseName_u2
+    ora #(PPUCTRL_NMI | PPUCTRL_OBJPT1)
+    sta rPPUCTRL
     lda Zp_PpuMask_u8
     sta rPPUMASK
-    ;; Indicate that we are done updating the PPU.
-    dec Zp_NmiReady_bool
+    ;; Mark the PPU transfer buffer as empty and indicate that we are done
+    ;; updating the PPU.
+    lda #0
+    sta Zp_PpuTransferLen_u8
+    sta Zp_NmiReady_bool
 _DoneUpdatingPpu:
     ;; Restore registers and return.  (Note that the rti instruction
     ;; automatically restores processor flags, so we don't need a plp
@@ -164,6 +178,12 @@ _DoneUpdatingPpu:
 ;;; the next NMI to complete.
 .EXPORT Func_ProcessFrame
 .PROC Func_ProcessFrame
+    ;; Zero-terminate the PPU transfer buffer.
+    ldx Zp_PpuTransferLen_u8
+    lda #0
+    sta Ram_PpuTransfer_start, x
+    ;; Tell the NMI handler that we are ready for it to transfer data, then
+    ;; wait until it finishes.
     inc Zp_NmiReady_bool
     @loop:
     lda Zp_NmiReady_bool
