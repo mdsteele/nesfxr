@@ -10,7 +10,7 @@
     .if _is_immediate arg
     op #<_get_immediate arg
     .else
-    op (arg)
+    op arg
     .endif
 .ENDMACRO
 
