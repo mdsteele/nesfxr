@@ -1,3 +1,4 @@
+.INCLUDE "apu.inc"
 .INCLUDE "joypad.inc"
 .INCLUDE "macros.inc"
 .INCLUDE "oam.inc"
@@ -127,6 +128,26 @@ Data_Palettes_end:
     rts
 .ENDPROC
 
+.PROC Func_SetCh1Env
+    lda Ram_Duty_u8
+    clc
+    ror a
+    ror a
+    ror a
+    ora Ram_Volume_u8
+    ora #%00110000
+    sta rCH1ENV
+    rts
+.ENDPROC
+
+.PROC Func_SetCh1Period
+    lda Ram_Period_u16 + 0
+    sta rCH1LOW
+    lda Ram_Period_u16 + 1
+    sta rCH1HIGH
+    rts
+.ENDPROC
+
 .PROC Func_UpdateDuty
     ldx Zp_PpuTransferLen_u8
     lda #3
@@ -171,8 +192,7 @@ Data_Palettes_end:
     inx
     stx Zp_PpuTransferLen_u8
     ;; Update audio register:
-    ;; TODO
-    rts
+    jmp Func_SetCh1Env
 .ENDPROC
 
 .PROC Func_UpdateVolume
@@ -193,8 +213,7 @@ Data_Palettes_end:
     inx
     stx Zp_PpuTransferLen_u8
     ;; Update audio register:
-    ;; TODO
-    rts
+    jmp Func_SetCh1Env
 .ENDPROC
 
 .PROC Func_UpdatePeriod
@@ -229,8 +248,7 @@ Data_Palettes_end:
     inx
     stx Zp_PpuTransferLen_u8
     ;; Update audio registers:
-    ;; TODO
-    rts
+    jmp Func_SetCh1Period
 .ENDPROC
 
 .PROC Func_IncrementDuty
@@ -448,6 +466,9 @@ _InitOam:
     sta Ram_Cursor_oama + OAMA::XPos
     lda #$18
     sta Ram_Cursor_oama + OAMA::YPos
+_InitApu:
+    lda #APUCTRL_PULSE1
+    sta rAPUCTRL
 _GameLoop:
     jsr Func_UpdateButtons
 _CheckButtonDown:
