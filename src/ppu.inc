@@ -89,4 +89,7 @@ SCREEN_HEIGHT_TILES = 30
 ATTR_WIDTH  = 8
 ATTR_HEIGHT = 8
 
+.DEFINE kTileWidthPx  8
+.DEFINE kTileHeightPx 8
+
 ;;;=========================================================================;;;
