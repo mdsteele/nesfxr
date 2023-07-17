@@ -16,12 +16,13 @@
 
 MENU_TOP_ROW    = 2
 MENU_LEFT_COL   = 4
-MENU_LABEL_COLS = 8
+MENU_LABEL_COLS = 9
 
-CURSOR_ROW_DUTY   = 0
-CURSOR_ROW_VOLUME = 1
-CURSOR_ROW_PERIOD = 2
-NUM_CURSOR_ROWS   = 3
+CURSOR_ROW_DUTY    = 0
+CURSOR_ROW_VOLUME  = 1
+CURSOR_ROW_PERIOD  = 2
+CURSOR_ROW_VIBRATO = 3
+NUM_CURSOR_ROWS    = 4
 
 DUTY_1_8 = %00
 DUTY_1_4 = %01
@@ -35,6 +36,7 @@ MAX_PERIOD = $3ff
 PPUADDR_DUTY_VALUE = (PPUADDR_NAME0 + SCREEN_WIDTH_TILES * (MENU_TOP_ROW + CURSOR_ROW_DUTY) + MENU_LEFT_COL + MENU_LABEL_COLS)
 PPUADDR_VOLUME_VALUE = (PPUADDR_NAME0 + SCREEN_WIDTH_TILES * (MENU_TOP_ROW + CURSOR_ROW_VOLUME) + MENU_LEFT_COL + MENU_LABEL_COLS + 1)
 PPUADDR_PERIOD_VALUE = (PPUADDR_NAME0 + SCREEN_WIDTH_TILES * (MENU_TOP_ROW + CURSOR_ROW_PERIOD) + MENU_LEFT_COL + MENU_LABEL_COLS + 1)
+PPUADDR_VIBRATO_VALUE = (PPUADDR_NAME0 + SCREEN_WIDTH_TILES * (MENU_TOP_ROW + CURSOR_ROW_VIBRATO) + MENU_LEFT_COL + MENU_LABEL_COLS + 1)
 
 ;;;=========================================================================;;;
 
@@ -62,20 +64,27 @@ Ram_CursorRow_u8: .res 1
 Ram_Duty_u8: .res 1
 Ram_Volume_u8: .res 1
 Ram_Period_u16: .res 2
+Ram_VibratoDepth_u8: .res 1
+
+Ram_PeriodLo_u8: .res 1
+Ram_VibratoPhase_u8: .res 1
 
 ;;;=========================================================================;;;
 
 .RODATA
 
 Data_StrDuty_start:
-    .byte "  Duty: 1/8"
+    .byte "   Duty: 1/8"
 Data_StrDuty_end:
 Data_StrVolume_start:
-    .byte "Volume: $0"
+    .byte " Volume: $0"
 Data_StrVolume_end:
 Data_StrPeriod_start:
-    .byte "Period: $000"
+    .byte " Period: $000"
 Data_StrPeriod_end:
+Data_StrVibrato_start:
+    .byte "Vibrato: $00"
+Data_StrVibrato_end:
 
 Data_Palettes_start:
     .byte $08  ; dark yellow
@@ -143,6 +152,7 @@ Data_Palettes_end:
 .PROC Func_SetCh1Period
     lda Ram_Period_u16 + 0
     sta rCH1LOW
+    sta Ram_PeriodLo_u8
     lda Ram_Period_u16 + 1
     sta rCH1HIGH
     rts
@@ -251,6 +261,35 @@ Data_Palettes_end:
     jmp Func_SetCh1Period
 .ENDPROC
 
+.PROC Func_UpdateVibrato
+    ldx Zp_PpuTransferLen_u8
+    lda #2
+    sta Ram_PpuTransfer_start, x
+    inx
+    lda #>PPUADDR_VIBRATO_VALUE
+    sta Ram_PpuTransfer_start, x
+    inx
+    lda #<PPUADDR_VIBRATO_VALUE
+    sta Ram_PpuTransfer_start, x
+    inx
+    ;; Buffer first digit:
+    lda Ram_VibratoDepth_u8
+    .repeat 4
+    lsr a
+    .endrepeat
+    jsr Func_HexDigitToAscii
+    sta Ram_PpuTransfer_start, x
+    inx
+    ;; Buffer second digit:
+    lda Ram_VibratoDepth_u8
+    and #$0f
+    jsr Func_HexDigitToAscii
+    sta Ram_PpuTransfer_start, x
+    inx
+    stx Zp_PpuTransferLen_u8
+    rts
+.ENDPROC
+
 .PROC Func_IncrementDuty
     lda Ram_Duty_u8
     cmp #MAX_DUTY
@@ -314,6 +353,19 @@ Data_Palettes_end:
     jmp Func_UpdatePeriod
 .ENDPROC
 
+.PROC Func_IncrementVibrato
+    lda Ram_VibratoDepth_u8
+    bne @nonzero
+    inc Ram_VibratoDepth_u8
+    jmp Func_UpdateVibrato
+    @nonzero:
+    bpl @shift
+    rts
+    @shift:
+    asl Ram_VibratoDepth_u8
+    jmp Func_UpdateVibrato
+.ENDPROC
+
 .PROC Func_IncrementCurrentRow
     lda Ram_CursorRow_u8
     cmp #CURSOR_ROW_DUTY
@@ -322,6 +374,8 @@ Data_Palettes_end:
     jeq Func_IncrementVolume
     cmp #CURSOR_ROW_PERIOD
     jeq Func_IncrementPeriod
+    cmp #CURSOR_ROW_VIBRATO
+    jeq Func_IncrementVibrato
     rts
 .ENDPROC
 
@@ -389,6 +443,11 @@ Data_Palettes_end:
     jmp Func_UpdatePeriod
 .ENDPROC
 
+.PROC Func_DecrementVibrato
+    lsr Ram_VibratoDepth_u8
+    jmp Func_UpdateVibrato
+.ENDPROC
+
 .PROC Func_DecrementCurrentRow
     lda Ram_CursorRow_u8
     cmp #CURSOR_ROW_DUTY
@@ -397,6 +456,36 @@ Data_Palettes_end:
     jeq Func_DecrementVolume
     cmp #CURSOR_ROW_PERIOD
     jeq Func_DecrementPeriod
+    cmp #CURSOR_ROW_VIBRATO
+    jeq Func_DecrementVibrato
+    rts
+.ENDPROC
+
+;;;=========================================================================;;;
+
+.CODE
+
+.PROC Func_AdvanceVibrato
+    lda Ram_VibratoPhase_u8
+    add #1
+    and #%11
+    sta Ram_VibratoPhase_u8
+    cmp #1
+    beq @plus
+    cmp #3
+    beq @minus
+    lda #0
+    jmp @finish
+    @plus:
+    lda Ram_VibratoDepth_u8
+    jmp @finish
+    @minus:
+    lda Ram_VibratoDepth_u8
+    eor #$ff
+    add #1
+    @finish:
+    add Ram_PeriodLo_u8
+    sta rCH1LOW
     rts
 .ENDPROC
 
@@ -445,6 +534,8 @@ _InitNametable:
                     Data_StrVolume_start, Data_StrVolume_end
     PPU_COPY_DIRECT (PPUADDR_NAME0 + SCREEN_WIDTH_TILES * 4 + 4), \
                     Data_StrPeriod_start, Data_StrPeriod_end
+    PPU_COPY_DIRECT (PPUADDR_NAME0 + SCREEN_WIDTH_TILES * 5 + 4), \
+                    Data_StrVibrato_start, Data_StrVibrato_end
 _InitPalettes:
     ldax #PPUADDR_PALETTES
     sta rPPUADDR
@@ -515,6 +606,7 @@ _UpdateCursor:
     sta Ram_Cursor_oama + OAMA::YPos
 _DrawFrame:
     jsr Func_ProcessFrame
+    jsr Func_AdvanceVibrato
     jmp _GameLoop
 .ENDPROC
 
