@@ -4,13 +4,17 @@
 .INCLUDE "oam.inc"
 .INCLUDE "ppu.inc"
 
-.IMPORT Func_ProcessFrame, Func_UpdateButtons
-.IMPORT Ram_Cursor_oama, Ram_PpuTransfer_start
+.IMPORT Func_ProcessFrame
+.IMPORT Func_UpdateButtons
+.IMPORT Ram_Cursor_sObj
+.IMPORT Ram_PpuTransfer_start
+.IMPORTZP Zp_BaseName_u2
+.IMPORTZP Zp_P1ButtonsHeld_u8
+.IMPORTZP Zp_P1ButtonsPressed_u8
+.IMPORTZP Zp_PpuMask_u8
 .IMPORTZP Zp_PpuTransferLen_u8
-.IMPORTZP Zp_P1ButtonsHeld_u8, Zp_P1ButtonsPressed_u8
-.IMPORTZP Zp_BaseName_u2, Zp_PpuMask_u8, Zp_ScrollX_u8, Zp_ScrollY_u8
-
-.LINECONT +
+.IMPORTZP Zp_ScrollX_u8
+.IMPORTZP Zp_ScrollY_u8
 
 ;;;=========================================================================;;;
 
@@ -43,13 +47,13 @@ PPUADDR_VIBRATO_VALUE = (PPUADDR_NAME0 + SCREEN_WIDTH_TILES * (MENU_TOP_ROW + CU
 .MACRO PPU_COPY_DIRECT dest, start, end
     .local @loop
     ldax #(dest)
-    sta rPPUADDR
-    stx rPPUADDR
+    sta Hw_PpuAddr_w2
+    stx Hw_PpuAddr_w2
     ldy #((end) - (start))
     ldx #0
     @loop:
     lda start, x
-    sta rPPUDATA
+    sta Hw_PpuData_rw
     inx
     dey
     bne @loop
@@ -315,14 +319,14 @@ Data_Palettes_end:
 .PROC Func_IncrementPeriod
     ;; Store increment amount in XY.
     lda Zp_P1ButtonsHeld_u8
-    and #BUTTON_A
+    and #bJoypad::AButton
     beq @not100
     ldx #$01
     ldy #$00
     beq @increment  ; unconditional
     @not100:
     lda Zp_P1ButtonsHeld_u8
-    and #BUTTON_B
+    and #bJoypad::BButton
     beq @not10
     ldx #$00
     ldy #$10
@@ -402,14 +406,14 @@ Data_Palettes_end:
 .PROC Func_DecrementPeriod
     ;; Store decrement amount in XY.
     lda Zp_P1ButtonsHeld_u8
-    and #BUTTON_A
+    and #bJoypad::AButton
     beq @not100
     ldx #$01
     ldy #$00
     beq @compare  ; unconditional
     @not100:
     lda Zp_P1ButtonsHeld_u8
-    and #BUTTON_B
+    and #bJoypad::BButton
     beq @not10
     ldx #$00
     ldy #$10
@@ -502,32 +506,33 @@ Data_Palettes_end:
     sta Zp_ScrollY_u8
     sta Zp_BaseName_u2
     ;; Enable rendering for next frame.
-    lda #PPUMASK_ALL
+    lda #bPpuMask::ObjAll | bPpuMask::BgAll
     sta Zp_PpuMask_u8
 _ClearNametable:
     ;; Fill nametable 0 with ' '.
-    bit rPPUSTATUS  ; Reset the write-twice latch for rPPUADDR.
+    bit Hw_PpuStatus_ro  ; Reset the write-twice latch for Hw_PpuAddr_w2.
     ldax #PPUADDR_NAME0
-    sta rPPUADDR
-    stx rPPUADDR
+    sta Hw_PpuAddr_w2
+    stx Hw_PpuAddr_w2
     lda #' '
     ldy #SCREEN_HEIGHT_TILES
     @outerLoop:
     ldx #SCREEN_WIDTH_TILES
     @innerLoop:
-    sta rPPUDATA
+    sta Hw_PpuData_rw
     dex
     bne @innerLoop
     dey
     bne @outerLoop
-    ;; Fill attribute table 0.  (rPPUADDR is already set up for this.)
+    ;; Fill attribute table 0.  (Hw_PpuAddr_w2 is already set up for this.)
     lda #%11100100
     ldx #(ATTR_WIDTH * ATTR_HEIGHT)
     @attrLoop:
-    sta rPPUDATA
+    sta Hw_PpuData_rw
     dex
     bne @attrLoop
 _InitNametable:
+    .linecont +
     PPU_COPY_DIRECT (PPUADDR_NAME0 + SCREEN_WIDTH_TILES * 2 + 4), \
                     Data_StrDuty_start, Data_StrDuty_end
     PPU_COPY_DIRECT (PPUADDR_NAME0 + SCREEN_WIDTH_TILES * 3 + 4), \
@@ -536,34 +541,35 @@ _InitNametable:
                     Data_StrPeriod_start, Data_StrPeriod_end
     PPU_COPY_DIRECT (PPUADDR_NAME0 + SCREEN_WIDTH_TILES * 5 + 4), \
                     Data_StrVibrato_start, Data_StrVibrato_end
+    .linecont -
 _InitPalettes:
     ldax #PPUADDR_PALETTES
-    sta rPPUADDR
-    stx rPPUADDR
+    sta Hw_PpuAddr_w2
+    stx Hw_PpuAddr_w2
     ldy #(Data_Palettes_end - Data_Palettes_start)
     ldx #0
     @loop:
     lda Data_Palettes_start, x
-    sta rPPUDATA
+    sta Hw_PpuData_rw
     inx
     dey
     bne @loop
 _InitOam:
     lda #0
-    sta Ram_Cursor_oama + OAMA::Flags
+    sta Ram_Cursor_sObj + sObj::Flags_bObj
     lda #'>'
-    sta Ram_Cursor_oama + OAMA::Tile
+    sta Ram_Cursor_sObj + sObj::Tile_u8
     lda #$10
-    sta Ram_Cursor_oama + OAMA::XPos
+    sta Ram_Cursor_sObj + sObj::XPos_u8
     lda #$18
-    sta Ram_Cursor_oama + OAMA::YPos
+    sta Ram_Cursor_sObj + sObj::YPos_u8
 _InitApu:
-    lda #APUCTRL_PULSE1
-    sta rAPUCTRL
+    lda #bApuStatus::Pulse1
+    sta Hw_ApuStatus_rw
 _GameLoop:
     jsr Func_UpdateButtons
 _CheckButtonDown:
-    lda #BUTTON_DOWN
+    lda #bJoypad::Down
     bit Zp_P1ButtonsPressed_u8
     beq @notPressed
     lda Ram_CursorRow_u8
@@ -575,7 +581,7 @@ _CheckButtonDown:
     sta Ram_CursorRow_u8
     @notPressed:
 _CheckButtonUp:
-    lda #BUTTON_UP
+    lda #bJoypad::Up
     bit Zp_P1ButtonsPressed_u8
     beq @notPressed
     lda Ram_CursorRow_u8
@@ -586,13 +592,13 @@ _CheckButtonUp:
     sta Ram_CursorRow_u8
     @notPressed:
 _CheckButtonRight:
-    lda #BUTTON_RIGHT
+    lda #bJoypad::Right
     bit Zp_P1ButtonsPressed_u8
     beq @notPressed
     jsr Func_IncrementCurrentRow
     @notPressed:
 _CheckButtonLeft:
-    lda #BUTTON_LEFT
+    lda #bJoypad::Left
     bit Zp_P1ButtonsPressed_u8
     beq @notPressed
     jsr Func_DecrementCurrentRow
@@ -603,7 +609,7 @@ _UpdateCursor:
     asl a
     asl a
     adc #$10
-    sta Ram_Cursor_oama + OAMA::YPos
+    sta Ram_Cursor_sObj + sObj::YPos_u8
 _DrawFrame:
     jsr Func_ProcessFrame
     jsr Func_AdvanceVibrato

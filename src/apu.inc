@@ -2,20 +2,27 @@
 
 ;;;=========================================================================;;;
 
-rAPUCTRL = $4015
+Hw_ApuStatus_rw = $4015
 
-APUCTRL_PULSE1   = %00000001
-APUCTRL_PULSE2   = %00000010
-APUCTRL_TRIANGLE = %00000100
-APUCTRL_NOISE    = %00001000
-APUCTRL_DMC      = %00010000
+.SCOPE bApuStatus
+    DmcInterrupt   = %10000000
+    FrameInterrupt = %01000000
+    Dmc            = %00010000
+    Noise          = %00001000
+    Triangle       = %00000100
+    Pulse2         = %00000010
+    Pulse1         = %00000001
+.ENDSCOPE
 
 ;;;=========================================================================;;;
 
-;;; APU Frame Counter (https://wiki.nesdev.org/w/index.php/APU_Frame_Counter)
-rAPUCOUNT = $4017
+;;; APU Frame Counter (https://www.nesdev.org/wiki/APU_Frame_Counter)
+Hw_ApuCount_wo = $4017
 
-APUCOUNT_DISABLE = %01000000  ; disable audio IRQ
+.SCOPE bApuCount
+    Seq5Step   = %10000000
+    DisableIrq = %01000000  ; if set, frame counter IRQs will not be generated
+.ENDSCOPE
 
 ;;;=========================================================================;;;
 

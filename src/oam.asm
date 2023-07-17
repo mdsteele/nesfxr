@@ -4,11 +4,11 @@
 
 .SEGMENT "OAM"
 
-.EXPORT Ram_ShadowOam_oama_arr64
-Ram_ShadowOam_oama_arr64:
+.EXPORT Ram_ShadowOam_sObj_arr64
+Ram_ShadowOam_sObj_arr64:
 
-.EXPORT Ram_Cursor_oama
-Ram_Cursor_oama: .tag OAMA
+.EXPORT Ram_Cursor_sObj
+Ram_Cursor_sObj: .tag sObj
 
 ;;;=========================================================================;;;
 
@@ -20,13 +20,11 @@ Ram_Cursor_oama: .tag OAMA
     lda #$fe
     ldx #0
     @loop:
-    .assert OAMA::YPos = 0, error
-    sta Ram_ShadowOam_oama_arr64, X
-    .assert .sizeof(OAMA) = 4, error
+    .assert sObj::YPos_u8 = 0, error
+    sta Ram_ShadowOam_sObj_arr64, X
+    .repeat .sizeof(sObj)
     inx
-    inx
-    inx
-    inx
+    .endrepeat
     bne @loop
     rts
 .ENDPROC

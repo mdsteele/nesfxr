@@ -3,23 +3,30 @@
 
 ;;;=========================================================================;;;
 
-rOAMADDR = $2003
-rOAMDATA = $2004
-rOAMDMA  = $4014
+;;; Writing here sets the start OAM address used by Hw_OamDma_wo.
+Hw_OamAddr_wo = $2003
+
+;;; Writing $xx here will upload CPU page $xx00-$xxff to the internal PPU OAM.
+;;; The CPU is suspended during the transfer.
+Hw_OamDma_wo  = $4014
 
 ;;;=========================================================================;;;
 
-.STRUCT OAMA
-    YPos  .byte
-    Tile  .byte
-    Flags .byte
-    XPos  .byte
+.STRUCT sObj
+    YPos_u8    .byte
+    Tile_u8    .byte
+    Flags_bObj .byte
+    XPos_u8    .byte
 .ENDSTRUCT
 
 ;;;=========================================================================;;;
 
-OAMF_YFLIP = %10000000
-OAMF_XFLIP = %01000000
-OAMF_PRI   = %00100000
+.SCOPE bObj
+    FlipV       = %10000000  ; flip object vertically
+    FlipH       = %01000000  ; flip object horizontally
+    FlipHV      = %11000000  ; flip object both horizontally and vertically
+    Pri         = %00100000  ; draw object behind background
+    PaletteMask = %00000011  ; bits used for the OBJ palette number
+.ENDSCOPE
 
 ;;;=========================================================================;;;

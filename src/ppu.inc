@@ -2,61 +2,70 @@
 
 ;;;=========================================================================;;;
 
-;;; PPU control register (W).
+;;; PPU control register.
 ;;;
 ;;; When using the MMC3 mapper's IRQ feature, it is best to use 8x8 objects,
 ;;; and use pattern table $0000 for BG and $1000 for objects.  For details, see
 ;;; https://wiki.nesdev.org/w/index.php/MMC3#IRQ_Specifics and
 ;;; https://wiki.nesdev.org/w/index.php/Sprite_size.
-rPPUCTRL = $2000
+Hw_PpuCtrl_wo = $2000
 
-PPUCTRL_NMI    = %10000000  ; enable NMI interrupts for VBlank
-PPUCTRL_OBJ16  = %00100000  ; use 8x16 objects (instead of 8x8)
-PPUCTRL_BGPT1  = %00010000  ; use pattern table 1 ($1000) for background
-PPUCTRL_OBJPT1 = %00001000  ; use pattern table 1 ($1000) for objects
-PPUCTRL_INC32  = %00000100  ; increment VRAM addr by 32 per rPPUDATA read/write
+.SCOPE bPpuCtrl
+    EnableNmi = %10000000  ; enable NMI interrupts for VBlank
+    Obj8x16   = %00100000  ; use 8x16 objects (instead of 8x8)
+    BgPat1    = %00010000  ; use pattern table 1 ($1000) for background
+    ObjPat1   = %00001000  ; use pattern table 1 ($1000) for objects
+    Inc32     = %00000100  ; increment VRAM addr by 32 per PpuData read/write
+    NameMask  = %00000011  ; bits used to specify base nametable for scrolling
+.ENDSCOPE
 
 ;;;=========================================================================;;;
 
-;;; PPU rendering mask (W).  Set this to zero to disable rendering, which will
+;;; PPU rendering mask.  Set this to zero to disable rendering, which will
 ;;; allow access to the PPU outside of VBlank.
-rPPUMASK = $2001
+Hw_PpuMask_wo = $2001
 
-PPUMASK_BLUE  = %10000000  ; emphasize blue
-PPUMASK_GREEN = %01000000  ; emphasize green
-PPUMASK_RED   = %00100000  ; emphasize red
-PPUMASK_OBJM  = %00010000  ; draw objects in main part of screen
-PPUMASK_BGM   = %00001000  ; draw background in main part of screen
-PPUMASK_OBJL  = %00000100  ; draw objects in leftmost part of screen
-PPUMASK_BGL   = %00000010  ; draw background in leftmost part of screen
-PPUMASK_GRAY  = %00000001  ; grayscale mode
+.SCOPE bPpuMask
+    EmphBlue  = %10000000  ; emphasize blue
+    EmphGreen = %01000000  ; emphasize green
+    EmphRed   = %00100000  ; emphasize red
+    ObjMain   = %00010000  ; draw objects in main part of screen
+    BgMain    = %00001000  ; draw background in main part of screen
+    ObjLeft   = %00000100  ; draw objects in leftmost part of screen
+    BgLeft    = %00000010  ; draw background in leftmost part of screen
+    Grayscale = %00000001  ; grayscale mode
+    ObjAll    = %00010100  ; draw objects everywhere
+    BgAll     = %00001010  ; draw objects everywhere
+.ENDSCOPE
 
-PPUMASK_OBJ = (PPUMASK_OBJM | PPUMASK_OBJL)  ; draw objects everywhere
-PPUMASK_BG =  (PPUMASK_BGM  | PPUMASK_BGL)   ; draw background everywhere
-PPUMASK_ALL = (PPUMASK_BG   | PPUMASK_OBJ)   ; draw everything everywhere
-
-;;;=========================================================================;;;
-
-;;; PPU status (R).  Reading this will clear bit 7 (PPUSTATUS_VBLANK), and will
-;;; also reset the write-twice latch for rPPUSCROLL and rPPUADDR.
-rPPUSTATUS = $2002
-
-PPUSTATUS_VBLANK  = %10000000  ; VBlank has started
-PPUSTATUS_SPRITE0 = %01000000  ; sprite 0 hit
+.ASSERT bPpuMask::ObjAll = bPpuMask::ObjMain | bPpuMask::ObjLeft, error
+.ASSERT bPpuMask::BgAll = bPpuMask::BgMain | bPpuMask::BgLeft, error
 
 ;;;=========================================================================;;;
 
-;;; PPU scroll position (W).  Write twice (first X, then Y).
-rPPUSCROLL = $2005
+;;; PPU status register.  Reading this will clear bit 7 (bPpuStatus::VBlank),
+;;; and will also reset the write-twice latch for Hw_PpuScroll_w2 and
+;;; Hw_PpuAddr_w2.
+Hw_PpuStatus_ro = $2002
+
+.SCOPE bPpuStatus
+    VBlank     = %10000000  ; VBlank has started
+    Sprite0Hit = %01000000  ; an opaque OBJ 0 pixel hit an opaque BG pixel
+.ENDSCOPE
 
 ;;;=========================================================================;;;
 
-;;; PPU address register (W).  16 bits, write twice (high then low).
-rPPUADDR = $2006
+;;; PPU scroll position.  Write twice (first X, then Y).
+Hw_PpuScroll_w2 = $2005
 
-;;; PPU data register (R/W).  Auto-increments rPPUADDR by 1 or 32 on each
-;;; access, depending on value of rPPUCTRL.
-rPPUDATA = $2007
+;;;=========================================================================;;;
+
+;;; PPU address register.  16 bits, write twice (high then low).
+Hw_PpuAddr_w2 = $2006
+
+;;; PPU data register.  Auto-increments Hw_PpuAddr_w2 by 1 or 32 on each
+;;; access, depending on the value of Hw_PpuCtrl_wo.
+Hw_PpuData_rw = $2007
 
 PPUADDR_NAME0 = $2000  ; nametable 0 (upper-left)
 PPUADDR_ATTR0 = $23c0  ; attribute table 0

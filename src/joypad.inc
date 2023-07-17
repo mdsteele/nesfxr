@@ -1,23 +1,25 @@
 ;;;=========================================================================;;;
 
-;;; Player 1 controller data (R/W).  Write #1 here to populate the
-;;; shift registers for *both* controllers, then write zero here to allow
-;;; subsequently reading one bit at a time from each of rJOYPAD1 and rJOYPAD2.
-;;; See https://wiki.nesdev.org/w/index.php/Standard_controller for details.
-rJOYPAD1 = $4016
+;;; Player 1 controller data.  Write #1 here to populate the shift registers
+;;; for *both* controllers, then write zero here to allow subsequently reading
+;;; one bit at a time from each of Hw_Joypad1_rw and Hw_Joypad2_ro. See
+;;; https://wiki.nesdev.org/w/index.php/Standard_controller for details.
+Hw_Joypad1_rw = $4016
 
-;;; Player 2 controller data (R).
-rJOYPAD2 = $4017
+;;; Player 2 controller data.
+Hw_Joypad2_ro = $4017
 
 ;;;=========================================================================;;;
 
-BUTTON_A      = %10000000
-BUTTON_B      = %01000000
-BUTTON_SELECT = %00100000
-BUTTON_START  = %00010000
-BUTTON_UP     = %00001000
-BUTTON_DOWN   = %00000100
-BUTTON_LEFT   = %00000010
-BUTTON_RIGHT  = %00000001
+.SCOPE bJoypad
+    AButton = %10000000
+    BButton = %01000000
+    Select  = %00100000
+    Start   = %00010000
+    Up      = %00001000
+    Down    = %00000100
+    Left    = %00000010
+    Right   = %00000001
+.ENDSCOPE
 
 ;;;=========================================================================;;;

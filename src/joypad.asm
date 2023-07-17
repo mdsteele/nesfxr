@@ -26,17 +26,17 @@ Zp_P1ButtonsPressed_u8: .res 1
     ;; https://wiki.nesdev.org/w/index.php/Controller_reading_code.
     lda #1
     ;; While the strobe bit is set, buttons will be continuously reloaded.
-    ;; This means that reading from rJOYPAD1 will only return the state of the
-    ;; first button: button A.
-    sta rJOYPAD1
+    ;; This means that reading from Hw_Joypad1_rw will only return the state of
+    ;; the first button: button A.
+    sta Hw_Joypad1_rw
     sta Zp_P1ButtonsHeld_u8  ; Initialize with a 1 bit, to be used later.
     lsr a  ; now A is 0
-    ;; By storing 0 into rJOYPAD1, the strobe bit is cleared and the reloading
-    ;; stops.  This allows all 8 buttons (newly reloaded) to be read from
-    ;; JOYPAD1.
-    sta rJOYPAD1
+    ;; By storing 0 into Hw_Joypad1_rw, the strobe bit is cleared and the
+    ;; reloading stops.  This allows all 8 buttons (newly reloaded) to be read
+    ;; from JOYPAD1.
+    sta Hw_Joypad1_rw
     @loop:
-    lda rJOYPAD1
+    lda Hw_Joypad1_rw
     lsr a                    ; bit 0 -> Carry
     rol Zp_P1ButtonsHeld_u8  ; Carry -> bit 0; bit 7 -> Carry
     bcc @loop  ; Stop when the initial 1 bit is finally shifted into Carry.

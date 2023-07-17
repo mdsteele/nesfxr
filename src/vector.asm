@@ -1,31 +1,34 @@
 .INCLUDE "apu.inc"
+.INCLUDE "cpu.inc"
 .INCLUDE "oam.inc"
 .INCLUDE "ppu.inc"
 
-.IMPORT Func_OamClear, Main, Ram_ShadowOam_oama_arr64
+.IMPORT Func_OamClear
+.IMPORT Main
+.IMPORT Ram_ShadowOam_sObj_arr64
 
 ;;;=========================================================================;;;
 
 .ZEROPAGE
 
-;;; NmiReady: Set this to 1 to signal that Ram_ShadowOam_oama_arr64 is ready
+;;; NmiReady: Set this to 1 to signal that Ram_ShadowOam_sObj_arr64 is ready
 ;;; to be consumed by the NMI handler.  The NMI handler will set it back to 0
 ;;; once the data is transferred.
 Zp_NmiReady_bool: .res 1
 
-;;; PpuMask: The NMI handler will copy this to rPPUMASK when Zp_NmiReady_bool
-;;; is set.
+;;; PpuMask: The NMI handler will copy this to Hw_PpuMask_wo when
+;;; Zp_NmiReady_bool is set.
 .EXPORTZP Zp_PpuMask_u8
 Zp_PpuMask_u8: .res 1
 
-;;; ScrollX/ScrollY: The NMI handler will copy these to rPPUSCROLL when
+;;; ScrollX/ScrollY: The NMI handler will copy these to Hw_PpuScroll_w2 when
 ;;; Zp_NmiReady_bool is set.
 .EXPORTZP Zp_ScrollX_u8, Zp_ScrollY_u8
 Zp_ScrollX_u8: .res 1
 Zp_ScrollY_u8: .res 1
 
 ;;; BaseName: The base nametable index to scroll relative to (0-3).  The NMI
-;;; handler will copy this to the lower two bits of rPPUCTRL when
+;;; handler will copy this to the lower two bits of Hw_PpuCtrl_wo when
 ;;; Zp_NmiReady_bool is set.
 .EXPORTZP Zp_BaseName_u2
 Zp_BaseName_u2: .res 1
@@ -52,32 +55,42 @@ Ram_PpuTransfer_start: .res $80
 
 ;;; Reset interrupt handler, which is called on startup/reset.
 .PROC Int_Reset
-    sei  ; Disable maskable (IRQ) interrupts.
-    cld  ; Disable decimal mode.
-    lda #0
-    sta rPPUCTRL  ; Disable NMI.
-    sta rPPUMASK  ; Disable rendering.
-    ;; Disable APU IRQ.
-    lda #APUCOUNT_DISABLE
-    sta rAPUCOUNT
-    ;; Initialize stack.
-    ldx #$ff
+    sei  ; disable maskable (IRQ) interrupts
+    cld  ; disable BCD mode (doesn't matter for NES, but may for debuggers)
+    ;; Disable VBlank NMI.
+    ldx #0
+    stx Hw_PpuCtrl_wo   ; disable VBlank NMI
+    ;; Initialize stack pointer.
+    dex  ; now x is $ff
     txs
+    ;; Disable APU IRQ.
+    lda #bApuCount::DisableIrq
+    sta Hw_ApuCount_wo
+_WaitForFirstVBlank:
     ;; We need to wait for the PPU to warm up before can start the game.  The
     ;; standard strategy for this is to wait for two VBlanks to occur (for
     ;; details, see https://wiki.nesdev.org/w/index.php/Init_code and
     ;; https://wiki.nesdev.org/w/index.php/PPU_power_up_state#Best_practice).
     ;; For now, we'll wait for first VBlank.
-    bit rPPUSTATUS  ; Read rPPUSTATUS to implicitly clear the VBlank bit.
-    :
-    bit rPPUSTATUS  ; Set N (negative) CPU flag equal to value of VBlank bit.
-    bpl :-          ; Continue looping until the VBlank bit is set again.
+    bit Hw_PpuStatus_ro  ; Reading this implicitly clears the VBlank bit.
+    @loop:
+    .assert bPpuStatus::VBlank = bProc::Negative, error
+    bit Hw_PpuStatus_ro  ; Set N (negative) CPU flag to value of VBlank bit.
+    bpl @loop            ; Continue looping until the VBlank bit is set again.
+_DisableRendering:
+    ;; Now that we're in VBlank, we can disable rendering.  On a true reset,
+    ;; the PPU won't be warmed up yet and will ignore these writes, but that's
+    ;; okay because on a true reset, rendering is initially disabled anyway.
+    ;; On a soft reset, we want to disable rendering during VBlank.
+    lda #0
+    sta Hw_PpuMask_wo   ; disable rendering
+_InitializeRam:
     ;; We've got time to burn until the second VBlank, so this is a good
     ;; opportunity to initialize RAM.  If we were using a mapper, this would be
     ;; a good time to initialize that, too.
     lda #0
     ldx #0
-    :
+    @loop:
     sta $0000, x
     sta $0100, x
     sta $0200, x
@@ -87,15 +100,17 @@ Ram_PpuTransfer_start: .res $80
     sta $0600, x
     sta $0700, x
     inx
-    bne :-
+    bne @loop
     jsr Func_OamClear
+_WaitForSecondVBlank:
     ;; Wait for the second VBlank.  After this, the PPU should be warmed up.
-    :
-    bit rPPUSTATUS
-    bpl :-
+    @loop:
+    bit Hw_PpuStatus_ro
+    bpl @loop
+_Finish:
     ;; Enable NMI.
-    lda #PPUCTRL_NMI
-    sta rPPUCTRL
+    lda #bPpuCtrl::EnableNmi
+    sta Hw_PpuCtrl_wo
     ;; Start the game.
     jmp Main
 .ENDPROC
@@ -114,12 +129,12 @@ Ram_PpuTransfer_start: .res $80
     beq _DoneUpdatingPpu
 _TransferOamData:
     lda #0
-    sta rOAMADDR
-    .assert <Ram_ShadowOam_oama_arr64 = 0, error
-    lda #>Ram_ShadowOam_oama_arr64
-    sta rOAMDMA
+    sta Hw_OamAddr_wo
+    .assert <Ram_ShadowOam_sObj_arr64 = 0, error
+    lda #>Ram_ShadowOam_sObj_arr64
+    sta Hw_OamDma_wo
 _TransferPpuData:
-    bit rPPUSTATUS  ; Reset the write-twice latch for rPPUADDR and rPPUSCROLL.
+    bit Hw_PpuStatus_ro  ; Reset the write-twice latch.
     ldx #0
     @entryLoop:
     ldy Ram_PpuTransfer_start, x
@@ -127,31 +142,30 @@ _TransferPpuData:
     inx
     .repeat 2
     lda Ram_PpuTransfer_start, x
-    sta rPPUADDR
+    sta Hw_PpuAddr_w2
     inx
     .endrepeat
     @dataLoop:
     lda Ram_PpuTransfer_start, x
-    sta rPPUDATA
+    sta Hw_PpuData_rw
     inx
     dey
     bne @dataLoop
     beq @entryLoop  ; unconditional
     @done:
 _FinishUpdatingPpu:
-    ;; Update other PPU registers.  Note that rPPUSCROLL is a write-twice
-    ;; register (first X, then Y).  Also note that writing to rPPUADDR (as
-    ;; above) can corrupt the scroll position, so we need to write rPPUSCROLL
+    ;; Update other PPU registers.  Note that writing to Hw_PpuAddr_w2 (as
+    ;; above) can corrupt the scroll position, so we must write Hw_PpuScroll_w2
     ;; afterwards.  See https://wiki.nesdev.org/w/index.php/PPU_scrolling.
     lda Zp_ScrollX_u8
-    sta rPPUSCROLL
+    sta Hw_PpuScroll_w2
     lda Zp_ScrollY_u8
-    sta rPPUSCROLL
+    sta Hw_PpuScroll_w2
     lda Zp_BaseName_u2
-    ora #(PPUCTRL_NMI | PPUCTRL_OBJPT1)
-    sta rPPUCTRL
+    ora #bPpuCtrl::EnableNmi | bPpuCtrl::ObjPat1
+    sta Hw_PpuCtrl_wo
     lda Zp_PpuMask_u8
-    sta rPPUMASK
+    sta Hw_PpuMask_wo
     ;; Mark the PPU transfer buffer as empty and indicate that we are done
     ;; updating the PPU.
     lda #0

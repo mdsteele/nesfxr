@@ -4,18 +4,20 @@
 
 ;;;=========================================================================;;;
 
-INES_MAPPER = 0  ; 0 = NROM
-INES_MIRROR = 1  ; 0 = horizontal mirroring, 1 = vertical mirroring
-INES_SRAM   = 0  ; 1 = battery backed SRAM at $6000-7FFF
+kMapper     = 0  ; 0 = NROM
+kPrgRomSize = 2  ; number of 16k PRG ROM chunks (should be a power of 2)
+kChrRomSize = 1  ; number of 8k CHR ROM chunks (should be a power of 2)
+kMirror     = 1  ; 0 = horizontal mirroring, 1 = vertical mirroring
+kHasSram    = 0  ; 1 = battery backed SRAM at $6000-7FFF
 
 ;;;=========================================================================;;;
 
 .SEGMENT "HEADER"
-    .byte 'N', 'E', 'S', $1A  ; Magic number
-    .byte $02  ; 16k PRG chunk count
-    .byte $01  ; 8k CHR chunk count
-    .byte INES_MIRROR | (INES_SRAM << 1) | ((INES_MAPPER & $f) << 4)
-    .byte (INES_MAPPER & %11110000)
+    .byte "NES", $1a  ; magic number
+    .byte kPrgRomSize
+    .byte kChrRomSize
+    .byte kMirror | (kHasSram << 1) | ((kMapper & $f) << 4)
+    .byte (kMapper & %11110000)
     .byte $0, $0, $0, $0, $0, $0, $0, $0  ; padding
 
 ;;;=========================================================================;;;
