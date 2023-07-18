@@ -9,11 +9,8 @@
 .IMPORT Func_DrawCursor
 .IMPORT Func_IncrementValueOfCurrentField
 .IMPORT Func_ProcessFrame
-.IMPORT Func_StartFieldValuePpuTransfer
 .IMPORT Func_UpdateButtons
-.IMPORT Ram_PpuTransfer_start
 .IMPORTZP Zp_BaseName_u2
-.IMPORTZP Zp_P1ButtonsHeld_u8
 .IMPORTZP Zp_P1ButtonsPressed_u8
 .IMPORTZP Zp_PpuMask_u8
 .IMPORTZP Zp_ScrollX_u8
@@ -21,15 +18,15 @@
 
 ;;;=========================================================================;;;
 
-.MACRO PPU_COPY_DIRECT dest, start, end
+.MACRO PPU_COPY_DIRECT Dest, Start, End
     .local @loop
-    ldax #(dest)
+    ldax #(Dest)
     sta Hw_PpuAddr_w2
     stx Hw_PpuAddr_w2
-    ldy #((end) - (start))
+    ldy #((End) - (Start))
     ldx #0
     @loop:
-    lda start, x
+    lda Start, x
     sta Hw_PpuData_rw
     inx
     dey

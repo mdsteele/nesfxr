@@ -27,6 +27,11 @@ rom: $(ROMFILE)
 run: $(ROMFILE) $(ROMFILE).ram.nl $(ROMFILE).0.nl $(ROMFILE).1.nl
 	fceux --style=macintosh $<
 
+.PHONY: test
+test:
+	python3 tests/lint.py
+	python3 tests/style.py
+
 .PHONY: clean
 clean:
 	rm -rf $(OUTDIR)
@@ -68,6 +73,7 @@ $(ROMFILE).1.nl: $(LABELFILE) $(LABEL2NL)
 #=============================================================================#
 
 $(ROMFILE) $(LABELFILE): $(CFGFILE) $(OBJFILES)
+	python3 tests/lint.py
 	@echo "Linking $@"
 	@mkdir -p $(@D)
 	@ld65 -Ln $(LABELFILE) -o $@ -C $(CFGFILE) $(OBJFILES)

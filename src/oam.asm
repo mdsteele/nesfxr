@@ -14,7 +14,7 @@ Ram_Cursor_sObj: .tag sObj
 
 .CODE
 
-;; Places all sprites offscreen.
+;;; Places all sprites offscreen.
 .EXPORT Func_OamClear
 .PROC Func_OamClear
     lda #$fe

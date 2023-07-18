@@ -20,7 +20,6 @@
 
 .RODATA
 
-.EXPORT Data_FieldTileRow_u8
 .PROC Data_FieldTileRow_u8
     D_ENUM eField
     d_byte Ch1Duty,    2
