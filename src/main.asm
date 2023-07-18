@@ -20,16 +20,6 @@
 
 ;;;=========================================================================;;;
 
-MENU_TOP_ROW    = 2
-MENU_LEFT_COL   = 4
-MENU_LABEL_COLS = 9
-
-DUTY_1_8 = %00
-DUTY_1_4 = %01
-DUTY_1_2 = %10
-DUTY_3_4 = %11
-MAX_DUTY = %11
-
 MAX_VOLUME = $f
 MAX_PERIOD = $3ff
 
@@ -56,14 +46,14 @@ MAX_PERIOD = $3ff
 
 Zp_Cursor_eField: .res 1
 
+Zp_Ch1Duty_eDuty: .res 1
+Zp_Ch1Volume_u8: .res 1
+Zp_Ch1Period_u16: .res 2
+Zp_Ch1VibratoDepth_u8: .res 1
+
 ;;;=========================================================================;;;
 
 .BSS
-
-Ram_Duty_u8: .res 1
-Ram_Volume_u8: .res 1
-Ram_Period_u16: .res 2
-Ram_VibratoDepth_u8: .res 1
 
 Ram_PeriodLo_u8: .res 1
 Ram_VibratoPhase_u8: .res 1
@@ -138,22 +128,22 @@ Data_Palettes_end:
 .ENDPROC
 
 .PROC Func_SetCh1Env
-    lda Ram_Duty_u8
+    lda Zp_Ch1Duty_eDuty
     clc
     ror a
     ror a
     ror a
-    ora Ram_Volume_u8
+    ora Zp_Ch1Volume_u8
     ora #%00110000
     sta rCH1ENV
     rts
 .ENDPROC
 
 .PROC Func_SetCh1Period
-    lda Ram_Period_u16 + 0
+    lda Zp_Ch1Period_u16 + 0
     sta rCH1LOW
     sta Ram_PeriodLo_u8
-    lda Ram_Period_u16 + 1
+    lda Zp_Ch1Period_u16 + 1
     sta rCH1HIGH
     rts
 .ENDPROC
@@ -163,14 +153,8 @@ Data_Palettes_end:
     lda #3  ; param: transfer length
     jsr Func_StartFieldValuePpuTransfer  ; returns X
     ;; Buffer first digit:
-    lda Ram_Duty_u8
-    cmp #DUTY_3_4
-    beq @numerator3
-    lda #'1'
-    bne @doneFirstDigit  ; unconditional
-    @numerator3:
-    lda #'3'
-    @doneFirstDigit:
+    ldy Zp_Ch1Duty_eDuty
+    lda _DutyNumerator_u8_arr, y
     sta Ram_PpuTransfer_start, x
     inx
     ;; Buffer slash:
@@ -178,22 +162,24 @@ Data_Palettes_end:
     sta Ram_PpuTransfer_start, x
     inx
     ;; Buffer second digit:
-    lda Ram_Duty_u8
-    cmp #DUTY_1_8
-    beq @denominator8
-    cmp #DUTY_1_2
-    beq @denominator2
-    lda #'4'
-    bne @doneSecondDigit  ; unconditional
-    @denominator8:
-    lda #'8'
-    bne @doneSecondDigit  ; unconditional
-    @denominator2:
-    lda #'2'
-    @doneSecondDigit:
+    lda _DutyDenominator_u8_arr, y
     sta Ram_PpuTransfer_start, x
     ;; Update audio register:
     jmp Func_SetCh1Env
+_DutyNumerator_u8_arr:
+    D_ENUM eDuty
+    d_byte _1_8, '1'
+    d_byte _1_4, '1'
+    d_byte _1_2, '1'
+    d_byte _3_4, '3'
+    D_END
+_DutyDenominator_u8_arr:
+    D_ENUM eDuty
+    d_byte _1_8, '8'
+    d_byte _1_4, '4'
+    d_byte _1_2, '2'
+    d_byte _3_4, '4'
+    D_END
 .ENDPROC
 
 .PROC Func_UpdateVolume
@@ -201,7 +187,7 @@ Data_Palettes_end:
     lda #1  ; param: transfer length
     jsr Func_StartFieldValuePpuTransfer  ; returns X
     ;; Buffer first (only) digit:
-    lda Ram_Volume_u8
+    lda Zp_Ch1Volume_u8
     jsr Func_HexDigitToAscii  ; preserves X
     sta Ram_PpuTransfer_start, x
     ;; Update audio register:
@@ -213,18 +199,18 @@ Data_Palettes_end:
     lda #3  ; param: transfer length
     jsr Func_StartFieldValuePpuTransfer  ; returns X
     ;; Buffer first digit:
-    lda Ram_Period_u16 + 1
+    lda Zp_Ch1Period_u16 + 1
     jsr Func_HexDigitToAscii  ; preserves X
     sta Ram_PpuTransfer_start, x
     inx
     ;; Buffer second digit:
-    lda Ram_Period_u16 + 0
+    lda Zp_Ch1Period_u16 + 0
     div #$10
     jsr Func_HexDigitToAscii  ; preserves X
     sta Ram_PpuTransfer_start, x
     inx
     ;; Buffer third digit:
-    lda Ram_Period_u16 + 0
+    lda Zp_Ch1Period_u16 + 0
     and #$0f
     jsr Func_HexDigitToAscii  ; preserves X
     sta Ram_PpuTransfer_start, x
@@ -237,13 +223,13 @@ Data_Palettes_end:
     lda #2  ; param: transfer length
     jsr Func_StartFieldValuePpuTransfer  ; returns X
     ;; Buffer first digit:
-    lda Ram_VibratoDepth_u8
+    lda Zp_Ch1VibratoDepth_u8
     div #$10
     jsr Func_HexDigitToAscii  ; preserves X
     sta Ram_PpuTransfer_start, x
     inx
     ;; Buffer second digit:
-    lda Ram_VibratoDepth_u8
+    lda Zp_Ch1VibratoDepth_u8
     and #$0f
     jsr Func_HexDigitToAscii  ; preserves X
     sta Ram_PpuTransfer_start, x
@@ -251,24 +237,24 @@ Data_Palettes_end:
 .ENDPROC
 
 .PROC Func_IncrementDuty
-    lda Ram_Duty_u8
-    cmp #MAX_DUTY
-    blt @increment
+    ldx Zp_Ch1Duty_eDuty
+    inx
+    cpx #eDuty::NUM_VALUES
+    blt @setDuty
     rts
-    @increment:
-    add #1
-    sta Ram_Duty_u8
+    @setDuty:
+    stx Zp_Ch1Duty_eDuty
     jmp Func_UpdateDuty
 .ENDPROC
 
 .PROC Func_IncrementVolume
-    lda Ram_Volume_u8
+    lda Zp_Ch1Volume_u8
     cmp #MAX_VOLUME
     blt @increment
     rts
     @increment:
     add #1
-    sta Ram_Volume_u8
+    sta Zp_Ch1Volume_u8
     jmp Func_UpdateVolume
 .ENDPROC
 
@@ -290,39 +276,39 @@ Data_Palettes_end:
     @not10:
     ldx #$00
     ldy #$01
-    ;; Add XY to Ram_Period_u16.
+    ;; Add XY to Zp_Ch1Period_u16.
     @increment:
     tya
-    add Ram_Period_u16 + 0
-    sta Ram_Period_u16 + 0
+    add Zp_Ch1Period_u16 + 0
+    sta Zp_Ch1Period_u16 + 0
     txa
-    adc Ram_Period_u16 + 1
-    sta Ram_Period_u16 + 1
-    ;; Clamp Ram_Period_u16 to MAX_PERIOD.
-    lda Ram_Period_u16 + 1
+    adc Zp_Ch1Period_u16 + 1
+    sta Zp_Ch1Period_u16 + 1
+    ;; Clamp Zp_Ch1Period_u16 to MAX_PERIOD.
+    lda Zp_Ch1Period_u16 + 1
     cmp #>(MAX_PERIOD + 1)
     blt @noClamp
-    lda Ram_Period_u16 + 0
+    lda Zp_Ch1Period_u16 + 0
     cmp #<(MAX_PERIOD + 1)
     blt @noClamp
     lda #>MAX_PERIOD
-    sta Ram_Period_u16 + 1
+    sta Zp_Ch1Period_u16 + 1
     lda #<MAX_PERIOD
-    sta Ram_Period_u16 + 0
+    sta Zp_Ch1Period_u16 + 0
     @noClamp:
     jmp Func_UpdatePeriod
 .ENDPROC
 
 .PROC Func_IncrementVibrato
-    lda Ram_VibratoDepth_u8
+    lda Zp_Ch1VibratoDepth_u8
     bne @nonzero
-    inc Ram_VibratoDepth_u8
+    inc Zp_Ch1VibratoDepth_u8
     jmp Func_UpdateVibrato
     @nonzero:
     bpl @shift
     rts
     @shift:
-    asl Ram_VibratoDepth_u8
+    asl Zp_Ch1VibratoDepth_u8
     jmp Func_UpdateVibrato
 .ENDPROC
 
@@ -346,22 +332,21 @@ Data_Palettes_end:
 .ENDPROC
 
 .PROC Func_DecrementDuty
-    lda Ram_Duty_u8
+    lda Zp_Ch1Duty_eDuty
     bne @decrement
     rts
     @decrement:
-    sub #1
-    sta Ram_Duty_u8
+    dec Zp_Ch1Duty_eDuty
     jmp Func_UpdateDuty
 .ENDPROC
 
 .PROC Func_DecrementVolume
-    lda Ram_Volume_u8
+    lda Zp_Ch1Volume_u8
     bne @decrement
     rts
     @decrement:
     sub #1
-    sta Ram_Volume_u8
+    sta Zp_Ch1Volume_u8
     jmp Func_UpdateVolume
 .ENDPROC
 
@@ -383,34 +368,34 @@ Data_Palettes_end:
     @not10:
     ldx #$00
     ldy #$01
-    ;; If XY >= Ram_Period_u16, set Ram_Period_u16 to zero.
+    ;; If XY >= Zp_Ch1Period_u16, set Zp_Ch1Period_u16 to zero.
     @compare:
     txa
-    cmp Ram_Period_u16 + 1
+    cmp Zp_Ch1Period_u16 + 1
     blt @noClamp
     tya
-    cmp Ram_Period_u16 + 0
+    cmp Zp_Ch1Period_u16 + 0
     blt @noClamp
     lda #0
-    sta Ram_Period_u16 + 0
-    sta Ram_Period_u16 + 1
+    sta Zp_Ch1Period_u16 + 0
+    sta Zp_Ch1Period_u16 + 1
     jmp Func_UpdatePeriod
     @noClamp:
-    ;; Subtract XY from Ram_Period_u16.
+    ;; Subtract XY from Zp_Ch1Period_u16.
     tya
     eor #$ff
     sec
-    adc Ram_Period_u16 + 0
-    sta Ram_Period_u16 + 0
+    adc Zp_Ch1Period_u16 + 0
+    sta Zp_Ch1Period_u16 + 0
     txa
     eor #$ff
-    adc Ram_Period_u16 + 1
-    sta Ram_Period_u16 + 1
+    adc Zp_Ch1Period_u16 + 1
+    sta Zp_Ch1Period_u16 + 1
     jmp Func_UpdatePeriod
 .ENDPROC
 
 .PROC Func_DecrementVibrato
-    lsr Ram_VibratoDepth_u8
+    lsr Zp_Ch1VibratoDepth_u8
     jmp Func_UpdateVibrato
 .ENDPROC
 
@@ -449,10 +434,10 @@ Data_Palettes_end:
     lda #0
     jmp @finish
     @plus:
-    lda Ram_VibratoDepth_u8
+    lda Zp_Ch1VibratoDepth_u8
     jmp @finish
     @minus:
-    lda Ram_VibratoDepth_u8
+    lda Zp_Ch1VibratoDepth_u8
     eor #$ff
     add #1
     @finish:
