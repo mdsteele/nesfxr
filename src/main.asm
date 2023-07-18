@@ -5,11 +5,12 @@
 .INCLUDE "oam.inc"
 .INCLUDE "ppu.inc"
 
-.IMPORT Data_FieldTileRow_u8
+.IMPORT Func_DecrementValueOfCurrentField
+.IMPORT Func_DrawCursor
+.IMPORT Func_IncrementValueOfCurrentField
 .IMPORT Func_ProcessFrame
 .IMPORT Func_StartFieldValuePpuTransfer
 .IMPORT Func_UpdateButtons
-.IMPORT Ram_Cursor_sObj
 .IMPORT Ram_PpuTransfer_start
 .IMPORTZP Zp_BaseName_u2
 .IMPORTZP Zp_P1ButtonsHeld_u8
@@ -17,11 +18,6 @@
 .IMPORTZP Zp_PpuMask_u8
 .IMPORTZP Zp_ScrollX_u8
 .IMPORTZP Zp_ScrollY_u8
-
-;;;=========================================================================;;;
-
-MAX_VOLUME = $f
-MAX_PERIOD = $3ff
 
 ;;;=========================================================================;;;
 
@@ -44,11 +40,16 @@ MAX_PERIOD = $3ff
 
 .ZEROPAGE
 
+.EXPORTZP Zp_Cursor_eField
 Zp_Cursor_eField: .res 1
 
+.EXPORTZP Zp_Ch1Duty_eDuty
 Zp_Ch1Duty_eDuty: .res 1
+.EXPORTZP Zp_Ch1Volume_u8
 Zp_Ch1Volume_u8: .res 1
+.EXPORTZP Zp_Ch1Period_u16
 Zp_Ch1Period_u16: .res 2
+.EXPORTZP Zp_Ch1VibratoDepth_u8
 Zp_Ch1VibratoDepth_u8: .res 1
 
 ;;;=========================================================================;;;
@@ -117,6 +118,7 @@ Data_Palettes_end:
 ;;; @param A The hex digit, from 0-F.
 ;;; @return A The ASCII value.
 ;;; @preserve X, Y, T0+
+.EXPORT Func_HexDigitToAscii
 .PROC Func_HexDigitToAscii
     cmp #$a
     bge @letter
@@ -127,6 +129,7 @@ Data_Palettes_end:
     rts
 .ENDPROC
 
+.EXPORT Func_SetCh1Env
 .PROC Func_SetCh1Env
     lda Zp_Ch1Duty_eDuty
     clc
@@ -139,6 +142,7 @@ Data_Palettes_end:
     rts
 .ENDPROC
 
+.EXPORT Func_SetCh1Period
 .PROC Func_SetCh1Period
     lda Zp_Ch1Period_u16 + 0
     sta rCH1LOW
@@ -146,276 +150,6 @@ Data_Palettes_end:
     lda Zp_Ch1Period_u16 + 1
     sta rCH1HIGH
     rts
-.ENDPROC
-
-.PROC Func_UpdateDuty
-    ldy #eField::Ch1Duty  ; param: eField
-    lda #3  ; param: transfer length
-    jsr Func_StartFieldValuePpuTransfer  ; returns X
-    ;; Buffer first digit:
-    ldy Zp_Ch1Duty_eDuty
-    lda _DutyNumerator_u8_arr, y
-    sta Ram_PpuTransfer_start, x
-    inx
-    ;; Buffer slash:
-    lda #'/'
-    sta Ram_PpuTransfer_start, x
-    inx
-    ;; Buffer second digit:
-    lda _DutyDenominator_u8_arr, y
-    sta Ram_PpuTransfer_start, x
-    ;; Update audio register:
-    jmp Func_SetCh1Env
-_DutyNumerator_u8_arr:
-    D_ENUM eDuty
-    d_byte _1_8, '1'
-    d_byte _1_4, '1'
-    d_byte _1_2, '1'
-    d_byte _3_4, '3'
-    D_END
-_DutyDenominator_u8_arr:
-    D_ENUM eDuty
-    d_byte _1_8, '8'
-    d_byte _1_4, '4'
-    d_byte _1_2, '2'
-    d_byte _3_4, '4'
-    D_END
-.ENDPROC
-
-.PROC Func_UpdateVolume
-    ldy #eField::Ch1Volume  ; param: eField
-    lda #1  ; param: transfer length
-    jsr Func_StartFieldValuePpuTransfer  ; returns X
-    ;; Buffer first (only) digit:
-    lda Zp_Ch1Volume_u8
-    jsr Func_HexDigitToAscii  ; preserves X
-    sta Ram_PpuTransfer_start, x
-    ;; Update audio register:
-    jmp Func_SetCh1Env
-.ENDPROC
-
-.PROC Func_UpdatePeriod
-    ldy #eField::Ch1Period  ; param: eField
-    lda #3  ; param: transfer length
-    jsr Func_StartFieldValuePpuTransfer  ; returns X
-    ;; Buffer first digit:
-    lda Zp_Ch1Period_u16 + 1
-    jsr Func_HexDigitToAscii  ; preserves X
-    sta Ram_PpuTransfer_start, x
-    inx
-    ;; Buffer second digit:
-    lda Zp_Ch1Period_u16 + 0
-    div #$10
-    jsr Func_HexDigitToAscii  ; preserves X
-    sta Ram_PpuTransfer_start, x
-    inx
-    ;; Buffer third digit:
-    lda Zp_Ch1Period_u16 + 0
-    and #$0f
-    jsr Func_HexDigitToAscii  ; preserves X
-    sta Ram_PpuTransfer_start, x
-    ;; Update audio registers:
-    jmp Func_SetCh1Period
-.ENDPROC
-
-.PROC Func_UpdateVibrato
-    ldy #eField::Ch1Vibrato  ; param: eField
-    lda #2  ; param: transfer length
-    jsr Func_StartFieldValuePpuTransfer  ; returns X
-    ;; Buffer first digit:
-    lda Zp_Ch1VibratoDepth_u8
-    div #$10
-    jsr Func_HexDigitToAscii  ; preserves X
-    sta Ram_PpuTransfer_start, x
-    inx
-    ;; Buffer second digit:
-    lda Zp_Ch1VibratoDepth_u8
-    and #$0f
-    jsr Func_HexDigitToAscii  ; preserves X
-    sta Ram_PpuTransfer_start, x
-    rts
-.ENDPROC
-
-.PROC Func_IncrementDuty
-    ldx Zp_Ch1Duty_eDuty
-    inx
-    cpx #eDuty::NUM_VALUES
-    blt @setDuty
-    rts
-    @setDuty:
-    stx Zp_Ch1Duty_eDuty
-    jmp Func_UpdateDuty
-.ENDPROC
-
-.PROC Func_IncrementVolume
-    lda Zp_Ch1Volume_u8
-    cmp #MAX_VOLUME
-    blt @increment
-    rts
-    @increment:
-    add #1
-    sta Zp_Ch1Volume_u8
-    jmp Func_UpdateVolume
-.ENDPROC
-
-.PROC Func_IncrementPeriod
-    ;; Store increment amount in XY.
-    lda Zp_P1ButtonsHeld_u8
-    and #bJoypad::AButton
-    beq @not100
-    ldx #$01
-    ldy #$00
-    beq @increment  ; unconditional
-    @not100:
-    lda Zp_P1ButtonsHeld_u8
-    and #bJoypad::BButton
-    beq @not10
-    ldx #$00
-    ldy #$10
-    bne @increment  ; unconditional
-    @not10:
-    ldx #$00
-    ldy #$01
-    ;; Add XY to Zp_Ch1Period_u16.
-    @increment:
-    tya
-    add Zp_Ch1Period_u16 + 0
-    sta Zp_Ch1Period_u16 + 0
-    txa
-    adc Zp_Ch1Period_u16 + 1
-    sta Zp_Ch1Period_u16 + 1
-    ;; Clamp Zp_Ch1Period_u16 to MAX_PERIOD.
-    lda Zp_Ch1Period_u16 + 1
-    cmp #>(MAX_PERIOD + 1)
-    blt @noClamp
-    lda Zp_Ch1Period_u16 + 0
-    cmp #<(MAX_PERIOD + 1)
-    blt @noClamp
-    lda #>MAX_PERIOD
-    sta Zp_Ch1Period_u16 + 1
-    lda #<MAX_PERIOD
-    sta Zp_Ch1Period_u16 + 0
-    @noClamp:
-    jmp Func_UpdatePeriod
-.ENDPROC
-
-.PROC Func_IncrementVibrato
-    lda Zp_Ch1VibratoDepth_u8
-    bne @nonzero
-    inc Zp_Ch1VibratoDepth_u8
-    jmp Func_UpdateVibrato
-    @nonzero:
-    bpl @shift
-    rts
-    @shift:
-    asl Zp_Ch1VibratoDepth_u8
-    jmp Func_UpdateVibrato
-.ENDPROC
-
-.PROC Func_IncrementValueOfCurrentField
-    ldy Zp_Cursor_eField
-    lda _JumpTable_ptr_0_arr, y
-    sta T0
-    lda _JumpTable_ptr_1_arr, y
-    sta T1
-    jmp (T1T0)
-.REPEAT 2, table
-    D_TABLE_LO table, _JumpTable_ptr_0_arr
-    D_TABLE_HI table, _JumpTable_ptr_1_arr
-    D_TABLE eField
-    d_entry table, Ch1Duty,    Func_IncrementDuty
-    d_entry table, Ch1Volume,  Func_IncrementVolume
-    d_entry table, Ch1Period,  Func_IncrementPeriod
-    d_entry table, Ch1Vibrato, Func_IncrementVibrato
-    D_END
-.ENDREPEAT
-.ENDPROC
-
-.PROC Func_DecrementDuty
-    lda Zp_Ch1Duty_eDuty
-    bne @decrement
-    rts
-    @decrement:
-    dec Zp_Ch1Duty_eDuty
-    jmp Func_UpdateDuty
-.ENDPROC
-
-.PROC Func_DecrementVolume
-    lda Zp_Ch1Volume_u8
-    bne @decrement
-    rts
-    @decrement:
-    sub #1
-    sta Zp_Ch1Volume_u8
-    jmp Func_UpdateVolume
-.ENDPROC
-
-.PROC Func_DecrementPeriod
-    ;; Store decrement amount in XY.
-    lda Zp_P1ButtonsHeld_u8
-    and #bJoypad::AButton
-    beq @not100
-    ldx #$01
-    ldy #$00
-    beq @compare  ; unconditional
-    @not100:
-    lda Zp_P1ButtonsHeld_u8
-    and #bJoypad::BButton
-    beq @not10
-    ldx #$00
-    ldy #$10
-    bne @compare  ; unconditional
-    @not10:
-    ldx #$00
-    ldy #$01
-    ;; If XY >= Zp_Ch1Period_u16, set Zp_Ch1Period_u16 to zero.
-    @compare:
-    txa
-    cmp Zp_Ch1Period_u16 + 1
-    blt @noClamp
-    tya
-    cmp Zp_Ch1Period_u16 + 0
-    blt @noClamp
-    lda #0
-    sta Zp_Ch1Period_u16 + 0
-    sta Zp_Ch1Period_u16 + 1
-    jmp Func_UpdatePeriod
-    @noClamp:
-    ;; Subtract XY from Zp_Ch1Period_u16.
-    tya
-    eor #$ff
-    sec
-    adc Zp_Ch1Period_u16 + 0
-    sta Zp_Ch1Period_u16 + 0
-    txa
-    eor #$ff
-    adc Zp_Ch1Period_u16 + 1
-    sta Zp_Ch1Period_u16 + 1
-    jmp Func_UpdatePeriod
-.ENDPROC
-
-.PROC Func_DecrementVibrato
-    lsr Zp_Ch1VibratoDepth_u8
-    jmp Func_UpdateVibrato
-.ENDPROC
-
-.PROC Func_DecrementValueOfCurrentField
-    ldy Zp_Cursor_eField
-    lda _JumpTable_ptr_0_arr, y
-    sta T0
-    lda _JumpTable_ptr_1_arr, y
-    sta T1
-    jmp (T1T0)
-.REPEAT 2, table
-    D_TABLE_LO table, _JumpTable_ptr_0_arr
-    D_TABLE_HI table, _JumpTable_ptr_1_arr
-    D_TABLE eField
-    d_entry table, Ch1Duty,    Func_DecrementDuty
-    d_entry table, Ch1Volume,  Func_DecrementVolume
-    d_entry table, Ch1Period,  Func_DecrementPeriod
-    d_entry table, Ch1Vibrato, Func_DecrementVibrato
-    D_END
-.ENDREPEAT
 .ENDPROC
 
 ;;;=========================================================================;;;
@@ -507,15 +241,6 @@ _InitPalettes:
     inx
     dey
     bne @loop
-_InitOam:
-    lda #0
-    sta Ram_Cursor_sObj + sObj::Flags_bObj
-    lda #'>'
-    sta Ram_Cursor_sObj + sObj::Tile_u8
-    lda #$10
-    sta Ram_Cursor_sObj + sObj::XPos_u8
-    lda #$18
-    sta Ram_Cursor_sObj + sObj::YPos_u8
 _InitApu:
     lda #bApuStatus::Pulse1
     sta Hw_ApuStatus_rw
@@ -555,12 +280,8 @@ _CheckButtonLeft:
     beq @notPressed
     jsr Func_DecrementValueOfCurrentField
     @notPressed:
-_UpdateCursor:
-    ldx Zp_Cursor_eField
-    lda Data_FieldTileRow_u8, x
-    mul #kTileHeightPx
-    sta Ram_Cursor_sObj + sObj::YPos_u8
 _DrawFrame:
+    jsr Func_DrawCursor
     jsr Func_ProcessFrame
     jsr Func_AdvanceVibrato
     jmp _GameLoop
