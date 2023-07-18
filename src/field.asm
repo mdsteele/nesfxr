@@ -22,19 +22,19 @@
 
 .PROC Data_FieldTileRow_u8
     D_ENUM eField
-    d_byte Ch1Duty,    2
-    d_byte Ch1Volume,  3
-    d_byte Ch1Period,  4
-    d_byte Ch1Vibrato, 5
+    d_byte Ch1Duty,    3
+    d_byte Ch1Volume,  4
+    d_byte Ch1Period,  8
+    d_byte Ch1Vibrato, 9
     D_END
 .ENDPROC
 
 .PROC Data_FieldValueTileCol_u8
     D_ENUM eField
-    d_byte Ch1Duty,    13
-    d_byte Ch1Volume,  14
-    d_byte Ch1Period,  14
-    d_byte Ch1Vibrato, 14
+    d_byte Ch1Duty,    19
+    d_byte Ch1Volume,  20
+    d_byte Ch1Period,  20
+    d_byte Ch1Vibrato, 20
     D_END
 .ENDPROC
 

@@ -38,7 +38,7 @@ T7T6 := $06
     .if _is_immediate arg
     op #>_get_immediate arg
     .else
-    op (arg) + 1
+    op arg + 1
     .endif
 .ENDMACRO
 

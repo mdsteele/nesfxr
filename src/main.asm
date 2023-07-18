@@ -18,23 +18,6 @@
 
 ;;;=========================================================================;;;
 
-.MACRO PPU_COPY_DIRECT Dest, Start, End
-    .local @loop
-    ldax #(Dest)
-    sta Hw_PpuAddr_w2
-    stx Hw_PpuAddr_w2
-    ldy #((End) - (Start))
-    ldx #0
-    @loop:
-    lda Start, x
-    sta Hw_PpuData_rw
-    inx
-    dey
-    bne @loop
-.ENDMACRO
-
-;;;=========================================================================;;;
-
 .ZEROPAGE
 
 .EXPORTZP Zp_Cursor_eField
@@ -60,49 +43,69 @@ Ram_VibratoPhase_u8: .res 1
 
 .RODATA
 
-Data_StrDuty_start:
-    .byte "   Duty: 1/8"
-Data_StrDuty_end:
-Data_StrVolume_start:
-    .byte " Volume: $0"
-Data_StrVolume_end:
-Data_StrPeriod_start:
-    .byte " Period: $000"
-Data_StrPeriod_end:
-Data_StrVibrato_start:
-    .byte "Vibrato: $00"
-Data_StrVibrato_end:
+.PROC Data_ScreenTiles_arr
+    .byte "+------------------------------+"
+    .byte "|                              |"
+    .byte "| PULSE 1 CHANNEL              |"
+    .byte "|      Pulse duty: 1/8         |"
+    .byte "|      Env volume: $0          |"
+    .byte "|   Sweep enabled: NO   (TODO) |"
+    .byte "|    Sweep period: $0   (TODO) |"
+    .byte "|     Sweep shift: +0   (TODO) |"
+    .byte "|     Tone period: $000        |"
+    .byte "|   Vibrato depth: $00         |"
+    .byte "|                              |"
+    .byte "| PULSE 2 CHANNEL       (TODO) |"
+    .byte "|                              |"
+    .byte "| TRIANGLE CHANNEL             |"
+    .byte "|     Tone period: $000 (TODO) |"
+    .byte "|   Vibrato depth: $00  (TODO) |"
+    .byte "|                              |"
+    .byte "| NOISE CHANNEL                |"
+    .byte "|      Env volume: $0   (TODO) |"
+    .byte "|    Noise period: $0   (TODO) |"
+    .byte "|      Noise loop: NO   (TODO) |"
+    .byte "|                              |"
+    .byte "|                              |"
+    .byte "|                              |"
+    .byte "|                              |"
+    .byte "|                              |"
+    .byte "|                              |"
+    .byte "|                              |"
+    .byte "|                              |"
+    .byte "+------------------------------+"
+.ENDPROC
 
 Data_Palettes_start:
-    .byte $08  ; dark yellow
+    .byte $1d  ; black
     .byte $19  ; medium green
     .byte $2a  ; green
-    .byte $3a  ; pale green
-    .byte $08
+    .byte $30  ; white
+    .byte $1d
     .byte $11  ; medium azure
     .byte $21  ; light azure
     .byte $31  ; pale azure
-    .byte $08
+    .byte $1d
     .byte $16  ; medium red
     .byte $26  ; light red
     .byte $36  ; pale red
-    .byte $08
+    .byte $1d
     .byte $13  ; medium purple
     .byte $23  ; light purple
     .byte $33  ; pale purple
-    .byte $08
+    .byte $1d
     .byte $07  ; dark orange
     .byte $17  ; medium orange
     .byte $27  ; light orange
-    .byte $08
+    .byte $1d
     .byte $0c  ; dark cyan
     .byte $1c  ; medium cyan
     .byte $2c  ; light cyan
-    .byte $08
+    .byte $1d
     .byte $04  ; dark magenta
     .byte $14  ; medium magenta
     .byte $24  ; light magenta
-    .byte $08
+    .byte $1d
     .byte $02  ; dark blue
     .byte $12  ; medium blue
     .byte $22  ; light blue
@@ -209,23 +212,32 @@ _ClearNametable:
     dey
     bne @outerLoop
     ;; Fill attribute table 0.  (Hw_PpuAddr_w2 is already set up for this.)
-    lda #%11100100
+    lda #%00000000
     ldx #(ATTR_WIDTH * ATTR_HEIGHT)
     @attrLoop:
     sta Hw_PpuData_rw
     dex
     bne @attrLoop
 _InitNametable:
-    .linecont +
-    PPU_COPY_DIRECT (PPUADDR_NAME0 + SCREEN_WIDTH_TILES * 2 + 4), \
-                    Data_StrDuty_start, Data_StrDuty_end
-    PPU_COPY_DIRECT (PPUADDR_NAME0 + SCREEN_WIDTH_TILES * 3 + 4), \
-                    Data_StrVolume_start, Data_StrVolume_end
-    PPU_COPY_DIRECT (PPUADDR_NAME0 + SCREEN_WIDTH_TILES * 4 + 4), \
-                    Data_StrPeriod_start, Data_StrPeriod_end
-    PPU_COPY_DIRECT (PPUADDR_NAME0 + SCREEN_WIDTH_TILES * 5 + 4), \
-                    Data_StrVibrato_start, Data_StrVibrato_end
-    .linecont -
+    ldax #Data_ScreenTiles_arr
+    stax T1T0
+    ldax #PPUADDR_NAME0
+    sta Hw_PpuAddr_w2
+    stx Hw_PpuAddr_w2
+    ldy #0
+    @loop:
+    lda (T1T0), y
+    sta Hw_PpuData_rw
+    inc T0
+    bne @inc
+    inc T1
+    @inc:
+    lda T1
+    cmp #>(Data_ScreenTiles_arr + .sizeof(Data_ScreenTiles_arr))
+    bne @loop
+    lda T0
+    cmp #<(Data_ScreenTiles_arr + .sizeof(Data_ScreenTiles_arr))
+    bne @loop
 _InitPalettes:
     ldax #PPUADDR_PALETTES
     sta Hw_PpuAddr_w2
