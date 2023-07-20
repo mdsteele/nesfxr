@@ -33,7 +33,6 @@ _No:
     inx
     lda #' '
     sta Ram_PpuTransfer_start, x
-    inx
     jmp Func_SetCh1Env
 _Yes:
     lda #'Y'
@@ -44,7 +43,6 @@ _Yes:
     inx
     lda #'S'
     sta Ram_PpuTransfer_start, x
-    inx
     jmp Func_SetCh1Env
 .ENDPROC
 

@@ -29,6 +29,10 @@ Zp_Ch1Duty_eDuty: .res 1
 Zp_Ch1Volume_u8: .res 1
 .EXPORTZP Zp_Ch1Decay_bool
 Zp_Ch1Decay_bool: .res 1
+.EXPORTZP Zp_Ch1SweepPeriod_u8
+Zp_Ch1SweepPeriod_u8: .res 1
+.EXPORTZP Zp_Ch1SweepShift_i8
+Zp_Ch1SweepShift_i8: .res 1
 .EXPORTZP Zp_Ch1Period_u16
 Zp_Ch1Period_u16: .res 2
 .EXPORTZP Zp_Ch1VibratoDepth_u8
@@ -52,8 +56,8 @@ Ram_VibratoPhase_u8: .res 1
     .byte "|      Pulse duty: 1/8         |"
     .byte "|      Env volume: $0          |"
     .byte "|       Env decay: NO          |"
-    .byte "|    Sweep period: $0   (TODO) |"
-    .byte "|     Sweep shift: +0   (TODO) |"
+    .byte "|     Sweep shift: OFF         |"
+    .byte "|    Sweep period: 0           |"
     .byte "|     Tone period: $000        |"
     .byte "|   Vibrato depth: $00         |"
     .byte "|                              |"
@@ -149,6 +153,28 @@ Data_Palettes_end:
     rts
 .ENDPROC
 
+.EXPORT Func_SetCh1Sweep
+.PROC Func_SetCh1Sweep
+    lda Zp_Ch1SweepShift_i8
+    beq _SetSweep
+    bpl _Pos
+_Neg:
+    and #%00001111
+    jmp _NonZero
+_Pos:
+    lda #8
+    sub Zp_Ch1SweepShift_i8
+_NonZero:
+    sta T0  ; shift
+    lda Zp_Ch1SweepPeriod_u8
+    mul #$10
+    ora T0  ; shift
+    ora #%10000000
+_SetSweep:
+    sta rCH1SWEEP
+    rts
+.ENDPROC
+
 .EXPORT Func_SetCh1Period
 .PROC Func_SetCh1Period
     lda Zp_Ch1Period_u16 + 0
@@ -160,11 +186,20 @@ Data_Palettes_end:
     rts
 .ENDPROC
 
+.PROC Func_RestartSound
+    jsr Func_SetCh1Env
+    jsr Func_SetCh1Sweep
+    jsr Func_SetCh1Period
+    rts
+.ENDPROC
+
 ;;;=========================================================================;;;
 
 .CODE
 
 .PROC Func_AdvanceVibrato
+    lda Zp_Ch1VibratoDepth_u8
+    beq @return
     lda Ram_VibratoPhase_u8
     add #1
     and #%11
@@ -185,6 +220,7 @@ Data_Palettes_end:
     @finish:
     add Ram_PeriodLo_u8
     sta rCH1LOW
+    @return:
     rts
 .ENDPROC
 
@@ -296,6 +332,12 @@ _CheckButtonLeft:
     bit Zp_P1ButtonsPressed_u8
     beq @notPressed
     jsr Func_DecrementValueOfCurrentField
+    @notPressed:
+_CheckButtonStart:
+    lda #bJoypad::Start
+    bit Zp_P1ButtonsPressed_u8
+    beq @notPressed
+    jsr Func_RestartSound
     @notPressed:
 _DrawFrame:
     jsr Func_DrawCursor

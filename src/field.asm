@@ -5,10 +5,14 @@
 
 .IMPORT Func_DecrementDuty
 .IMPORT Func_DecrementPeriod
+.IMPORT Func_DecrementSweepPeriod
+.IMPORT Func_DecrementSweepShift
 .IMPORT Func_DecrementVibrato
 .IMPORT Func_DecrementVolume
 .IMPORT Func_IncrementDuty
 .IMPORT Func_IncrementPeriod
+.IMPORT Func_IncrementSweepPeriod
+.IMPORT Func_IncrementSweepShift
 .IMPORT Func_IncrementVibrato
 .IMPORT Func_IncrementVolume
 .IMPORT Func_ToggleDecay
@@ -23,21 +27,25 @@
 
 .PROC Data_FieldTileRow_u8
     D_ENUM eField
-    d_byte Ch1Duty,    3
-    d_byte Ch1Volume,  4
-    d_byte Ch1Decay,   5
-    d_byte Ch1Period,  8
-    d_byte Ch1Vibrato, 9
+    d_byte Ch1Duty,        3
+    d_byte Ch1Volume,      4
+    d_byte Ch1Decay,       5
+    d_byte Ch1SweepShift,  6
+    d_byte Ch1SweepPeriod, 7
+    d_byte Ch1Period,      8
+    d_byte Ch1Vibrato,     9
     D_END
 .ENDPROC
 
 .PROC Data_FieldValueTileCol_u8
     D_ENUM eField
-    d_byte Ch1Duty,    19
-    d_byte Ch1Volume,  20
-    d_byte Ch1Decay,   19
-    d_byte Ch1Period,  20
-    d_byte Ch1Vibrato, 20
+    d_byte Ch1Duty,        19
+    d_byte Ch1Volume,      20
+    d_byte Ch1Decay,       19
+    d_byte Ch1SweepShift,  19
+    d_byte Ch1SweepPeriod, 19
+    d_byte Ch1Period,      20
+    d_byte Ch1Vibrato,     20
     D_END
 .ENDPROC
 
@@ -57,11 +65,13 @@
     D_TABLE_LO table, _JumpTable_ptr_0_arr
     D_TABLE_HI table, _JumpTable_ptr_1_arr
     D_TABLE eField
-    d_entry table, Ch1Duty,    Func_IncrementDuty
-    d_entry table, Ch1Volume,  Func_IncrementVolume
-    d_entry table, Ch1Decay,   Func_ToggleDecay
-    d_entry table, Ch1Period,  Func_IncrementPeriod
-    d_entry table, Ch1Vibrato, Func_IncrementVibrato
+    d_entry table, Ch1Duty,        Func_IncrementDuty
+    d_entry table, Ch1Volume,      Func_IncrementVolume
+    d_entry table, Ch1Decay,       Func_ToggleDecay
+    d_entry table, Ch1SweepShift,  Func_IncrementSweepShift
+    d_entry table, Ch1SweepPeriod, Func_IncrementSweepPeriod
+    d_entry table, Ch1Period,      Func_IncrementPeriod
+    d_entry table, Ch1Vibrato,     Func_IncrementVibrato
     D_END
 .ENDREPEAT
 .ENDPROC
@@ -78,11 +88,13 @@
     D_TABLE_LO table, _JumpTable_ptr_0_arr
     D_TABLE_HI table, _JumpTable_ptr_1_arr
     D_TABLE eField
-    d_entry table, Ch1Duty,    Func_DecrementDuty
-    d_entry table, Ch1Volume,  Func_DecrementVolume
-    d_entry table, Ch1Decay,   Func_ToggleDecay
-    d_entry table, Ch1Period,  Func_DecrementPeriod
-    d_entry table, Ch1Vibrato, Func_DecrementVibrato
+    d_entry table, Ch1Duty,        Func_DecrementDuty
+    d_entry table, Ch1Volume,      Func_DecrementVolume
+    d_entry table, Ch1Decay,       Func_ToggleDecay
+    d_entry table, Ch1SweepShift,  Func_DecrementSweepShift
+    d_entry table, Ch1SweepPeriod, Func_DecrementSweepPeriod
+    d_entry table, Ch1Period,      Func_DecrementPeriod
+    d_entry table, Ch1Vibrato,     Func_DecrementVibrato
     D_END
 .ENDREPEAT
 .ENDPROC
