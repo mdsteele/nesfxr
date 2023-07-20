@@ -27,6 +27,8 @@ Zp_Cursor_eField: .res 1
 Zp_Ch1Duty_eDuty: .res 1
 .EXPORTZP Zp_Ch1Volume_u8
 Zp_Ch1Volume_u8: .res 1
+.EXPORTZP Zp_Ch1Decay_bool
+Zp_Ch1Decay_bool: .res 1
 .EXPORTZP Zp_Ch1Period_u16
 Zp_Ch1Period_u16: .res 2
 .EXPORTZP Zp_Ch1VibratoDepth_u8
@@ -49,7 +51,7 @@ Ram_VibratoPhase_u8: .res 1
     .byte "| PULSE 1 CHANNEL              |"
     .byte "|      Pulse duty: 1/8         |"
     .byte "|      Env volume: $0          |"
-    .byte "|   Sweep enabled: NO   (TODO) |"
+    .byte "|       Env decay: NO          |"
     .byte "|    Sweep period: $0   (TODO) |"
     .byte "|     Sweep shift: +0   (TODO) |"
     .byte "|     Tone period: $000        |"
@@ -136,8 +138,13 @@ Data_Palettes_end:
     ror a
     ror a
     ror a
+    sta T0  ; duty
+    lda Zp_Ch1Decay_bool
+    and #%00010000
+    eor #%00010000
+    ora T0  ; duty
     ora Zp_Ch1Volume_u8
-    ora #%00110000
+    ora #%00100000
     sta rCH1ENV
     rts
 .ENDPROC
@@ -148,6 +155,7 @@ Data_Palettes_end:
     sta rCH1LOW
     sta Ram_PeriodLo_u8
     lda Zp_Ch1Period_u16 + 1
+    ora #%11111000
     sta rCH1HIGH
     rts
 .ENDPROC

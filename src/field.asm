@@ -11,6 +11,7 @@
 .IMPORT Func_IncrementPeriod
 .IMPORT Func_IncrementVibrato
 .IMPORT Func_IncrementVolume
+.IMPORT Func_ToggleDecay
 .IMPORT Ram_Cursor_sObj
 .IMPORT Ram_PpuTransfer_start
 .IMPORTZP Zp_Cursor_eField
@@ -24,6 +25,7 @@
     D_ENUM eField
     d_byte Ch1Duty,    3
     d_byte Ch1Volume,  4
+    d_byte Ch1Decay,   5
     d_byte Ch1Period,  8
     d_byte Ch1Vibrato, 9
     D_END
@@ -33,6 +35,7 @@
     D_ENUM eField
     d_byte Ch1Duty,    19
     d_byte Ch1Volume,  20
+    d_byte Ch1Decay,   19
     d_byte Ch1Period,  20
     d_byte Ch1Vibrato, 20
     D_END
@@ -56,6 +59,7 @@
     D_TABLE eField
     d_entry table, Ch1Duty,    Func_IncrementDuty
     d_entry table, Ch1Volume,  Func_IncrementVolume
+    d_entry table, Ch1Decay,   Func_ToggleDecay
     d_entry table, Ch1Period,  Func_IncrementPeriod
     d_entry table, Ch1Vibrato, Func_IncrementVibrato
     D_END
@@ -76,6 +80,7 @@
     D_TABLE eField
     d_entry table, Ch1Duty,    Func_DecrementDuty
     d_entry table, Ch1Volume,  Func_DecrementVolume
+    d_entry table, Ch1Decay,   Func_ToggleDecay
     d_entry table, Ch1Period,  Func_DecrementPeriod
     d_entry table, Ch1Vibrato, Func_DecrementVibrato
     D_END

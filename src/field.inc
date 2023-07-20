@@ -3,6 +3,7 @@
 .ENUM eField
     Ch1Duty
     Ch1Volume
+    Ch1Decay
     Ch1Period
     Ch1Vibrato
     NUM_VALUES
