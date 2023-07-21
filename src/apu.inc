@@ -2,6 +2,15 @@
 
 ;;;=========================================================================;;;
 
+.ENUM eChannel
+    Pulse1
+    Pulse2
+    Triangle
+    Noise
+    Dmc
+    NUM_VALUES
+.ENDENUM
+
 .ENUM eDuty
     _1_8
     _1_4
@@ -40,5 +49,9 @@ rCH1ENV   = $4000
 rCH1SWEEP = $4001
 rCH1LOW   = $4002
 rCH1HIGH  = $4003
+
+rCHNENV   = $400c
+rCHNLOW   = $400e
+rCHNHIGH  = $400f
 
 ;;;=========================================================================;;;

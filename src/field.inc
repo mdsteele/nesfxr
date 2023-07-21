@@ -8,6 +8,8 @@
     Ch1SweepPeriod
     Ch1Period
     Ch1Vibrato
+    NoiseVolume
+    NoiseDecay
     NUM_VALUES
 .ENDENUM
 

@@ -1,4 +1,3 @@
-.INCLUDE "../field.inc"
 .INCLUDE "../joypad.inc"
 .INCLUDE "../macros.inc"
 
@@ -103,25 +102,24 @@ kMaxPeriod = $3ff
 .ENDPROC
 
 .PROC Func_UpdatePeriod
-    ldy #eField::Ch1Period  ; param: eField
     lda #3  ; param: transfer length
-    jsr Func_StartFieldValuePpuTransfer  ; returns X
+    jsr Func_StartFieldValuePpuTransfer  ; returns Y
     ;; Buffer first digit:
     lda Zp_Ch1Period_u16 + 1
-    jsr Func_HexDigitToAscii  ; preserves X
-    sta Ram_PpuTransfer_start, x
-    inx
+    jsr Func_HexDigitToAscii  ; preserves Y
+    sta Ram_PpuTransfer_start, y
+    iny
     ;; Buffer second digit:
     lda Zp_Ch1Period_u16 + 0
     div #$10
-    jsr Func_HexDigitToAscii  ; preserves X
-    sta Ram_PpuTransfer_start, x
-    inx
+    jsr Func_HexDigitToAscii  ; preserves Y
+    sta Ram_PpuTransfer_start, y
+    iny
     ;; Buffer third digit:
     lda Zp_Ch1Period_u16 + 0
     and #$0f
-    jsr Func_HexDigitToAscii  ; preserves X
-    sta Ram_PpuTransfer_start, x
+    jsr Func_HexDigitToAscii  ; preserves Y
+    sta Ram_PpuTransfer_start, y
     ;; Update audio registers:
     jmp Func_SetCh1Period
 .ENDPROC

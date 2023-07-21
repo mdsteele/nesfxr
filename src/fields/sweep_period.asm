@@ -1,4 +1,3 @@
-.INCLUDE "../field.inc"
 .INCLUDE "../macros.inc"
 
 .IMPORT Func_HexDigitToAscii
@@ -39,13 +38,12 @@ kMaxSweepPeriod = 7
 .ENDPROC
 
 .PROC Func_UpdateSweepPeriod
-    ldy #eField::Ch1SweepPeriod  ; param: eField
     lda #1  ; param: transfer length
-    jsr Func_StartFieldValuePpuTransfer  ; returns X
+    jsr Func_StartFieldValuePpuTransfer  ; returns Y
     ;; Buffer first (only) digit:
     lda Zp_Ch1SweepPeriod_u8
-    jsr Func_HexDigitToAscii  ; preserves X
-    sta Ram_PpuTransfer_start, x
+    jsr Func_HexDigitToAscii  ; preserves Y
+    sta Ram_PpuTransfer_start, y
     ;; Update audio register:
     jmp Func_SetCh1Sweep
 .ENDPROC

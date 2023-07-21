@@ -1,4 +1,3 @@
-.INCLUDE "../field.inc"
 .INCLUDE "../macros.inc"
 
 .IMPORT Func_HexDigitToAscii
@@ -41,45 +40,44 @@ kMinSweepShift = <-7
 .ENDPROC
 
 .PROC Func_UpdateSweepShift
-    ldy #eField::Ch1SweepShift  ; param: eField
     lda #3  ; param: transfer length
-    jsr Func_StartFieldValuePpuTransfer  ; returns X
+    jsr Func_StartFieldValuePpuTransfer  ; returns Y
     lda Zp_Ch1SweepShift_i8
     beq _Off
     bmi _Neg
 _Pos:
     lda #'+'
-    sta Ram_PpuTransfer_start, x
-    inx
+    sta Ram_PpuTransfer_start, y
+    iny
     lda Zp_Ch1SweepShift_i8
-    jsr Func_HexDigitToAscii  ; preserves X
-    sta Ram_PpuTransfer_start, x
-    inx
+    jsr Func_HexDigitToAscii  ; preserves Y
+    sta Ram_PpuTransfer_start, y
+    iny
     lda #' '
-    sta Ram_PpuTransfer_start, x
+    sta Ram_PpuTransfer_start, y
     jmp Func_SetCh1Sweep
 _Neg:
     lda #'-'
-    sta Ram_PpuTransfer_start, x
-    inx
+    sta Ram_PpuTransfer_start, y
+    iny
     lda Zp_Ch1SweepShift_i8
     eor #$ff
     add #1
-    jsr Func_HexDigitToAscii  ; preserves X
-    sta Ram_PpuTransfer_start, x
-    inx
+    jsr Func_HexDigitToAscii  ; preserves Y
+    sta Ram_PpuTransfer_start, y
+    iny
     lda #' '
-    sta Ram_PpuTransfer_start, x
+    sta Ram_PpuTransfer_start, y
     jmp Func_SetCh1Sweep
 _Off:
     lda #'O'
-    sta Ram_PpuTransfer_start, x
-    inx
+    sta Ram_PpuTransfer_start, y
+    iny
     lda #'F'
-    sta Ram_PpuTransfer_start, x
-    inx
+    sta Ram_PpuTransfer_start, y
+    iny
     lda #'F'
-    sta Ram_PpuTransfer_start, x
+    sta Ram_PpuTransfer_start, y
     jmp Func_SetCh1Sweep
 .ENDPROC
 

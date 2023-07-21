@@ -8,8 +8,11 @@
 .IMPORT Func_DecrementValueOfCurrentField
 .IMPORT Func_DrawCursor
 .IMPORT Func_IncrementValueOfCurrentField
+.IMPORT Func_Noop
 .IMPORT Func_ProcessFrame
 .IMPORT Func_UpdateButtons
+.IMPORT Ram_ChannelDecay_bool_arr
+.IMPORT Ram_ChannelVolume_u8_arr
 .IMPORTZP Zp_BaseName_u2
 .IMPORTZP Zp_P1ButtonsPressed_u8
 .IMPORTZP Zp_PpuMask_u8
@@ -25,10 +28,6 @@ Zp_Cursor_eField: .res 1
 
 .EXPORTZP Zp_Ch1Duty_eDuty
 Zp_Ch1Duty_eDuty: .res 1
-.EXPORTZP Zp_Ch1Volume_u8
-Zp_Ch1Volume_u8: .res 1
-.EXPORTZP Zp_Ch1Decay_bool
-Zp_Ch1Decay_bool: .res 1
 .EXPORTZP Zp_Ch1SweepPeriod_u8
 Zp_Ch1SweepPeriod_u8: .res 1
 .EXPORTZP Zp_Ch1SweepShift_i8
@@ -68,10 +67,10 @@ Ram_VibratoPhase_u8: .res 1
     .byte "|   Vibrato depth: $00  (TODO) |"
     .byte "|                              |"
     .byte "| NOISE CHANNEL                |"
-    .byte "|      Env volume: $0   (TODO) |"
+    .byte "|      Env volume: $0          |"
+    .byte "|       Env decay: NO          |"
     .byte "|    Noise period: $0   (TODO) |"
     .byte "|      Noise loop: NO   (TODO) |"
-    .byte "|                              |"
     .byte "|                              |"
     .byte "|                              |"
     .byte "|                              |"
@@ -135,6 +134,27 @@ Data_Palettes_end:
     rts
 .ENDPROC
 
+;;; @param X The eChannel.
+.EXPORT Func_SetChannelEnv
+.PROC Func_SetChannelEnv
+    lda _JumpTable_ptr_0_arr, x
+    sta T0
+    lda _JumpTable_ptr_1_arr, x
+    sta T1
+    jmp (T1T0)
+.REPEAT 2, table
+    D_TABLE_LO table, _JumpTable_ptr_0_arr
+    D_TABLE_HI table, _JumpTable_ptr_1_arr
+    D_TABLE eChannel
+    d_entry table, Pulse1,   Func_SetCh1Env
+    d_entry table, Pulse2,   Func_Noop
+    d_entry table, Triangle, Func_Noop
+    d_entry table, Noise,    Func_SetChNEnv
+    d_entry table, Dmc,      Func_Noop
+    D_END
+.ENDREPEAT
+.ENDPROC
+
 .EXPORT Func_SetCh1Env
 .PROC Func_SetCh1Env
     lda Zp_Ch1Duty_eDuty
@@ -143,13 +163,23 @@ Data_Palettes_end:
     ror a
     ror a
     sta T0  ; duty
-    lda Zp_Ch1Decay_bool
+    lda Ram_ChannelDecay_bool_arr + eChannel::Pulse1
     and #%00010000
     eor #%00010000
     ora T0  ; duty
-    ora Zp_Ch1Volume_u8
+    ora Ram_ChannelVolume_u8_arr + eChannel::Pulse1
     ora #%00100000
     sta rCH1ENV
+    rts
+.ENDPROC
+
+.PROC Func_SetChNEnv
+    lda Ram_ChannelDecay_bool_arr + eChannel::Noise
+    and #%00010000
+    eor #%00010000
+    ora Ram_ChannelVolume_u8_arr + eChannel::Noise
+    ora #%00100000
+    sta rCHNENV
     rts
 .ENDPROC
 
@@ -186,10 +216,20 @@ _SetSweep:
     rts
 .ENDPROC
 
+.PROC Func_SetChNPeriod
+    lda #3  ; TODO: use noise period
+    sta rCHNLOW
+    lda #%11111000
+    sta rCHNHIGH
+    rts
+.ENDPROC
+
 .PROC Func_RestartSound
     jsr Func_SetCh1Env
     jsr Func_SetCh1Sweep
     jsr Func_SetCh1Period
+    jsr Func_SetChNEnv
+    jsr Func_SetChNPeriod
     rts
 .ENDPROC
 
@@ -295,8 +335,9 @@ _InitPalettes:
     dey
     bne @loop
 _InitApu:
-    lda #bApuStatus::Pulse1
+    lda #bApuStatus::Pulse1 | bApuStatus::Noise
     sta Hw_ApuStatus_rw
+    jsr Func_RestartSound
 _GameLoop:
     jsr Func_UpdateButtons
 _CheckButtonDown:

@@ -1,4 +1,3 @@
-.INCLUDE "../field.inc"
 .INCLUDE "../macros.inc"
 
 .IMPORT Func_HexDigitToAscii
@@ -31,20 +30,19 @@
 .ENDPROC
 
 .PROC Func_UpdateVibrato
-    ldy #eField::Ch1Vibrato  ; param: eField
     lda #2  ; param: transfer length
-    jsr Func_StartFieldValuePpuTransfer  ; returns X
+    jsr Func_StartFieldValuePpuTransfer  ; returns Y
     ;; Buffer first digit:
     lda Zp_Ch1VibratoDepth_u8
     div #$10
-    jsr Func_HexDigitToAscii  ; preserves X
-    sta Ram_PpuTransfer_start, x
-    inx
+    jsr Func_HexDigitToAscii  ; preserves Y
+    sta Ram_PpuTransfer_start, y
+    iny
     ;; Buffer second digit:
     lda Zp_Ch1VibratoDepth_u8
     and #$0f
-    jsr Func_HexDigitToAscii  ; preserves X
-    sta Ram_PpuTransfer_start, x
+    jsr Func_HexDigitToAscii  ; preserves Y
+    sta Ram_PpuTransfer_start, y
     rts
 .ENDPROC
 

@@ -1,5 +1,4 @@
 .INCLUDE "../apu.inc"
-.INCLUDE "../field.inc"
 .INCLUDE "../macros.inc"
 
 .IMPORT Func_SetCh1Env
@@ -34,21 +33,20 @@
 .ENDPROC
 
 .PROC Func_UpdateDuty
-    ldy #eField::Ch1Duty  ; param: eField
     lda #3  ; param: transfer length
-    jsr Func_StartFieldValuePpuTransfer  ; returns X
+    jsr Func_StartFieldValuePpuTransfer  ; returns Y
     ;; Buffer first digit:
-    ldy Zp_Ch1Duty_eDuty
-    lda _DutyNumerator_u8_arr, y
-    sta Ram_PpuTransfer_start, x
-    inx
+    ldx Zp_Ch1Duty_eDuty
+    lda _DutyNumerator_u8_arr, x
+    sta Ram_PpuTransfer_start, y
+    iny
     ;; Buffer slash:
     lda #'/'
-    sta Ram_PpuTransfer_start, x
-    inx
+    sta Ram_PpuTransfer_start, y
+    iny
     ;; Buffer second digit:
-    lda _DutyDenominator_u8_arr, y
-    sta Ram_PpuTransfer_start, x
+    lda _DutyDenominator_u8_arr, x
+    sta Ram_PpuTransfer_start, y
     ;; Update audio register:
     jmp Func_SetCh1Env
 _DutyNumerator_u8_arr:
