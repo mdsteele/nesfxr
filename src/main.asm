@@ -11,6 +11,7 @@
 .IMPORT Func_Noop
 .IMPORT Func_ProcessFrame
 .IMPORT Func_UpdateButtons
+.IMPORT Ram_ChannelBuzz_bool_arr
 .IMPORT Ram_ChannelDecay_bool_arr
 .IMPORT Ram_ChannelPeriod_u16_0_arr
 .IMPORT Ram_ChannelPeriod_u16_1_arr
@@ -69,7 +70,7 @@ Ram_VibratoPhase_u8: .res 1
     .byte "|      Env volume: $0          |"
     .byte "|       Env decay: NO          |"
     .byte "|    Noise period: $0          |"
-    .byte "|      Noise loop: NO   (TODO) |"
+    .byte "|      Noise buzz: NO          |"
     .byte "|                              |"
     .byte "|                              |"
     .byte "|                              |"
@@ -118,20 +119,6 @@ Data_Palettes_end:
 ;;;=========================================================================;;;
 
 .CODE
-
-;;; @param A The hex digit, from 0-F.
-;;; @return A The ASCII value.
-;;; @preserve X, Y, T0+
-.EXPORT Func_HexDigitToAscii
-.PROC Func_HexDigitToAscii
-    cmp #$a
-    bge @letter
-    add #'0'
-    rts
-    @letter:
-    add #('A' - 10)
-    rts
-.ENDPROC
 
 ;;; @param X The eChannel.
 .EXPORT Func_SetChannelEnv
@@ -235,7 +222,9 @@ _SetSweep:
 .ENDPROC
 
 .PROC Func_SetChNPeriod
-    lda Ram_ChannelPeriod_u16_0_arr + eChannel::Noise
+    lda Ram_ChannelBuzz_bool_arr + eChannel::Noise
+    and #%10000000
+    ora Ram_ChannelPeriod_u16_0_arr + eChannel::Noise
     sta rCHNLOW
     lda #%11111000
     sta rCHNHIGH

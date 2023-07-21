@@ -16,6 +16,7 @@
 .IMPORT Func_IncrementSweepShift
 .IMPORT Func_IncrementVibrato
 .IMPORT Func_IncrementVolume
+.IMPORT Func_ToggleBuzz
 .IMPORT Func_ToggleDecay
 .IMPORT Ram_Cursor_sObj
 .IMPORT Ram_PpuTransfer_start
@@ -38,6 +39,7 @@
     d_byte NoiseVolume,   18
     d_byte NoiseDecay,    19
     d_byte NoisePeriod,   20
+    d_byte NoiseBuzz,     21
     D_END
 .ENDPROC
 
@@ -53,6 +55,7 @@
     d_byte NoiseVolume,    20
     d_byte NoiseDecay,     19
     d_byte NoisePeriod,    20
+    d_byte NoiseBuzz,      19
     D_END
 .ENDPROC
 
@@ -68,6 +71,7 @@
     d_byte NoiseVolume,    eChannel::Noise
     d_byte NoiseDecay,     eChannel::Noise
     d_byte NoisePeriod,    eChannel::Noise
+    d_byte NoiseBuzz,      eChannel::Noise
     D_END
 .ENDPROC
 
@@ -98,6 +102,7 @@
     d_entry table, NoiseVolume,    Func_IncrementVolume
     d_entry table, NoiseDecay,     Func_ToggleDecay
     d_entry table, NoisePeriod,    Func_IncrementPeriod
+    d_entry table, NoiseBuzz,      Func_ToggleBuzz
     D_END
 .ENDREPEAT
 .ENDPROC
@@ -125,6 +130,7 @@
     d_entry table, NoiseVolume,    Func_DecrementVolume
     d_entry table, NoiseDecay,     Func_ToggleDecay
     d_entry table, NoisePeriod,    Func_DecrementPeriod
+    d_entry table, NoiseBuzz,      Func_ToggleBuzz
     D_END
 .ENDREPEAT
 .ENDPROC

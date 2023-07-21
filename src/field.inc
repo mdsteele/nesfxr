@@ -11,6 +11,7 @@
     NoiseVolume
     NoiseDecay
     NoisePeriod
+    NoiseBuzz
     NUM_VALUES
 .ENDENUM
 
