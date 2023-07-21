@@ -12,6 +12,8 @@
 .IMPORT Func_ProcessFrame
 .IMPORT Func_UpdateButtons
 .IMPORT Ram_ChannelDecay_bool_arr
+.IMPORT Ram_ChannelPeriod_u16_0_arr
+.IMPORT Ram_ChannelPeriod_u16_1_arr
 .IMPORT Ram_ChannelVolume_u8_arr
 .IMPORTZP Zp_BaseName_u2
 .IMPORTZP Zp_P1ButtonsPressed_u8
@@ -32,8 +34,6 @@ Zp_Ch1Duty_eDuty: .res 1
 Zp_Ch1SweepPeriod_u8: .res 1
 .EXPORTZP Zp_Ch1SweepShift_i8
 Zp_Ch1SweepShift_i8: .res 1
-.EXPORTZP Zp_Ch1Period_u16
-Zp_Ch1Period_u16: .res 2
 .EXPORTZP Zp_Ch1VibratoDepth_u8
 Zp_Ch1VibratoDepth_u8: .res 1
 
@@ -41,7 +41,6 @@ Zp_Ch1VibratoDepth_u8: .res 1
 
 .BSS
 
-Ram_PeriodLo_u8: .res 1
 Ram_VibratoPhase_u8: .res 1
 
 ;;;=========================================================================;;;
@@ -69,7 +68,7 @@ Ram_VibratoPhase_u8: .res 1
     .byte "| NOISE CHANNEL                |"
     .byte "|      Env volume: $0          |"
     .byte "|       Env decay: NO          |"
-    .byte "|    Noise period: $0   (TODO) |"
+    .byte "|    Noise period: $0          |"
     .byte "|      Noise loop: NO   (TODO) |"
     .byte "|                              |"
     .byte "|                              |"
@@ -205,19 +204,38 @@ _SetSweep:
     rts
 .ENDPROC
 
-.EXPORT Func_SetCh1Period
+;;; @param X The eChannel.
+.EXPORT Func_SetChannelPeriod
+.PROC Func_SetChannelPeriod
+    lda _JumpTable_ptr_0_arr, x
+    sta T0
+    lda _JumpTable_ptr_1_arr, x
+    sta T1
+    jmp (T1T0)
+.REPEAT 2, table
+    D_TABLE_LO table, _JumpTable_ptr_0_arr
+    D_TABLE_HI table, _JumpTable_ptr_1_arr
+    D_TABLE eChannel
+    d_entry table, Pulse1,   Func_SetCh1Period
+    d_entry table, Pulse2,   Func_Noop
+    d_entry table, Triangle, Func_Noop
+    d_entry table, Noise,    Func_SetChNPeriod
+    d_entry table, Dmc,      Func_Noop
+    D_END
+.ENDREPEAT
+.ENDPROC
+
 .PROC Func_SetCh1Period
-    lda Zp_Ch1Period_u16 + 0
+    lda Ram_ChannelPeriod_u16_0_arr + eChannel::Pulse1
     sta rCH1LOW
-    sta Ram_PeriodLo_u8
-    lda Zp_Ch1Period_u16 + 1
+    lda Ram_ChannelPeriod_u16_1_arr + eChannel::Pulse1
     ora #%11111000
     sta rCH1HIGH
     rts
 .ENDPROC
 
 .PROC Func_SetChNPeriod
-    lda #3  ; TODO: use noise period
+    lda Ram_ChannelPeriod_u16_0_arr + eChannel::Noise
     sta rCHNLOW
     lda #%11111000
     sta rCHNHIGH
@@ -258,7 +276,7 @@ _SetSweep:
     eor #$ff
     add #1
     @finish:
-    add Ram_PeriodLo_u8
+    add Ram_ChannelPeriod_u16_0_arr + eChannel::Pulse1
     sta rCH1LOW
     @return:
     rts

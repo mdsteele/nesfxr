@@ -10,6 +10,7 @@
     Ch1Vibrato
     NoiseVolume
     NoiseDecay
+    NoisePeriod
     NUM_VALUES
 .ENDENUM
 

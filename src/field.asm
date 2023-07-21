@@ -37,6 +37,7 @@
     d_byte Ch1Vibrato,     9
     d_byte NoiseVolume,   18
     d_byte NoiseDecay,    19
+    d_byte NoisePeriod,   20
     D_END
 .ENDPROC
 
@@ -51,6 +52,7 @@
     d_byte Ch1Vibrato,     20
     d_byte NoiseVolume,    20
     d_byte NoiseDecay,     19
+    d_byte NoisePeriod,    20
     D_END
 .ENDPROC
 
@@ -65,6 +67,7 @@
     d_byte Ch1Vibrato,     eChannel::Pulse1
     d_byte NoiseVolume,    eChannel::Noise
     d_byte NoiseDecay,     eChannel::Noise
+    d_byte NoisePeriod,    eChannel::Noise
     D_END
 .ENDPROC
 
@@ -94,6 +97,7 @@
     d_entry table, Ch1Vibrato,     Func_IncrementVibrato
     d_entry table, NoiseVolume,    Func_IncrementVolume
     d_entry table, NoiseDecay,     Func_ToggleDecay
+    d_entry table, NoisePeriod,    Func_IncrementPeriod
     D_END
 .ENDREPEAT
 .ENDPROC
@@ -120,6 +124,7 @@
     d_entry table, Ch1Vibrato,     Func_DecrementVibrato
     d_entry table, NoiseVolume,    Func_DecrementVolume
     d_entry table, NoiseDecay,     Func_ToggleDecay
+    d_entry table, NoisePeriod,    Func_DecrementPeriod
     D_END
 .ENDREPEAT
 .ENDPROC
