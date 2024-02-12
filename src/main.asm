@@ -176,7 +176,7 @@ Data_Palettes_end:
     bpl _Pos
 _Neg:
     and #%00001111
-    jmp _NonZero
+    bpl _NonZero  ; unconditional
 _Pos:
     lda #8
     sub Zp_Ch1SweepShift_i8
