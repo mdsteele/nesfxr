@@ -172,7 +172,6 @@ Data_Palettes_end:
 .EXPORT Func_SetCh1Sweep
 .PROC Func_SetCh1Sweep
     lda Zp_Ch1SweepShift_i8
-    beq _SetSweep
     bpl _Pos
 _Neg:
     and #%00001111
